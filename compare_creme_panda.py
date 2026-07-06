@@ -85,8 +85,14 @@ print(f"Converted CREME-MC x-axis: Energy (MeV) -> Charge (fC), factor = {MEV_TO
 # =========================
 # PANDA data
 # =========================
-panda_file = "~/geant4/PANDA/Results/Current/cumulative_cross_section_collected.csv"
-panda = pd.read_csv(os.path.expanduser(panda_file))
+# Resolved relative to this script's own location (not a hardcoded
+# path to a sibling project) so this always reads whichever repo it
+# actually lives in -- see PANDA_GUI.py's project_dir for the same fix.
+script_dir = os.path.dirname(os.path.abspath(__file__))
+panda_file = os.path.join(
+    script_dir, "Results", "Current", "cumulative_cross_section_collected.csv"
+)
+panda = pd.read_csv(panda_file)
 
 # Adjust column names if needed
 x_panda = panda["ChargeThreshold_fC"].values
@@ -229,5 +235,5 @@ axs[1].text(
 )
 
 plt.tight_layout()
-plt.savefig("PANDA_vs_CREME.png", dpi=300)
+plt.savefig(os.path.join(script_dir, "PANDA_vs_CREME.png"), dpi=300)
 plt.show()
