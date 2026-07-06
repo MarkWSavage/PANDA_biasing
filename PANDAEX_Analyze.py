@@ -4,7 +4,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-RESULTS_DIR = os.path.join("Results", "Current")
+# Resolved relative to this script's own location (not the caller's
+# cwd) -- same fix applied to PANDA_GUI.py and compare_creme_panda.py
+# this session.
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+RESULTS_DIR = os.path.join(SCRIPT_DIR, "Results", "Current")
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
 
@@ -17,8 +21,20 @@ print("Loading:", csv_file)
 
 data = pd.read_csv(csv_file)
 
+# Weight every histogram/statistic by EventWeight, same as
+# PANDA_Analyze.py -- required so a biased run's rare, heavily-
+# down-weighted tail events don't get counted as full raw hits.
+# Falls back to weight=1.0 for events.csv files predating this column.
+has_weight_column = "EventWeight" in data.columns
+
+if has_weight_column:
+    weight = data["EventWeight"].values
+    print("EventWeight column found -- building bias-corrected (weighted) histograms.")
+else:
+    weight = np.ones(len(data))
+    print("No EventWeight column found (older events.csv) -- assuming weight=1.0 for all events.")
+
 total_keV = data["Total_keV"].values
-nonzero_keV = total_keV[total_keV > 0]
 
 proton_keV   = data["Proton_keV"].values
 electron_keV = data["Electron_keV"].values
@@ -27,20 +43,33 @@ recoil_keV   = data["Recoil_keV"].values
 # ----------------------------
 # Filter Data
 # ----------------------------
-proton_nonzero   = proton_keV[proton_keV > 0]
-electron_nonzero = electron_keV[electron_keV > 0]
-recoil_nonzero   = recoil_keV[recoil_keV > 0]
+nonzero_mask = total_keV > 0
+nonzero_keV    = total_keV[nonzero_mask]
+nonzero_weight = weight[nonzero_mask]
+
+proton_mask   = proton_keV > 0
+electron_mask = electron_keV > 0
+recoil_mask   = recoil_keV > 0
+
+proton_nonzero,   proton_weight   = proton_keV[proton_mask],     weight[proton_mask]
+electron_nonzero, electron_weight = electron_keV[electron_mask], weight[electron_mask]
+recoil_nonzero,   recoil_weight   = recoil_keV[recoil_mask],     weight[recoil_mask]
 
 # ----------------------------
 # Basic statistics
 # ----------------------------
+N_total = len(total_keV)
+
 print("\nEnergy statistics:")
 print(f"Min:  {np.min(total_keV):.3f} keV")
-print(f"Mean: {np.mean(total_keV):.3f} keV")
+# Weighted mean = sum(w*q) / N, N = number of primaries simulated (NOT
+# sum of weights) -- standard importance-sampling estimator, matching
+# PANDA_Analyze.py.
+print(f"Mean: {np.sum(total_keV * weight) / N_total:.3f} keV")
 print(f"Max:  {np.max(total_keV):.3f} keV")
-print(f"Total events: {len(total_keV)}")
-print(f"Triggered events: {len(nonzero_keV)}")
-print(f"Efficiency: {len(nonzero_keV)/len(total_keV):.8f}")
+print(f"Total events: {N_total}")
+print(f"Triggered events (raw count): {len(nonzero_keV)}")
+print(f"Efficiency (weighted): {np.sum(nonzero_weight) / N_total:.8e}")
 
 # ----------------------------
 # Histogram
@@ -53,22 +82,26 @@ bins = np.linspace(
 
 hist_total, edges = np.histogram(
     nonzero_keV,
-    bins=bins
+    bins=bins,
+    weights=nonzero_weight
 )
 
 hist_proton, _ = np.histogram(
     proton_nonzero,
-    bins=bins
+    bins=bins,
+    weights=proton_weight
 )
 
 hist_electron, _ = np.histogram(
     electron_nonzero,
-    bins=bins
+    bins=bins,
+    weights=electron_weight
 )
 
 hist_recoil, _ = np.histogram(
     recoil_nonzero,
-    bins=bins
+    bins=bins,
+    weights=recoil_weight
 )
 
 centers = 0.5 * (edges[:-1] + edges[1:])
@@ -109,7 +142,7 @@ plt.step(
 
 plt.legend()
 plt.xlabel("Deposited Energy (keV)")
-plt.ylabel("Counts")
+plt.ylabel("Weighted Counts" if has_weight_column else "Counts")
 plt.title("PANDAEX Raw Deposited Energy Spectrum")
 plt.yscale("log")
 
