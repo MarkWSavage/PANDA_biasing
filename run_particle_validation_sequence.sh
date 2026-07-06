@@ -1,16 +1,6 @@
 #!/bin/bash
 set -uo pipefail
-cd /home/markr/geant4/PANDA_biasing
-
-# Wait for the already-running neutron biased job (started before this
-# script existed) to finish before touching Results/Current/ at all --
-# only one PANDA process may write to that hardcoded path at a time.
-NEUTRON_BIASED_PID=8880
-echo "=== WAITING for in-flight neutron biased run (PID $NEUTRON_BIASED_PID) ==="
-while kill -0 "$NEUTRON_BIASED_PID" 2>/dev/null; do
-    sleep 2
-done
-echo "=== neutron biased run process exited ==="
+cd "$(dirname "${BASH_SOURCE[0]}")"
 
 run_and_archive() {
     local mac="$1"
@@ -33,13 +23,7 @@ run_and_archive() {
     echo "=== ARCHIVED: Results/$archive_dir/ ==="
 }
 
-# Archive the neutron biased run that just finished (its raw stdout/log
-# already exists from the earlier launch).
-mkdir -p Results/Neutron_1041_validated
-mv Results/Current/events.csv Results/Neutron_1041_validated/events.csv
-grep -A6 "GLOBAL FINAL COUNTS" run_output_neutron_biased.log > Results/Neutron_1041_validated/summary.txt
-echo "=== ARCHIVED: Results/Neutron_1041_validated/ ==="
-
+run_and_archive Macros/run_neutron_biased.mac   Neutron_1041_validated      run_output_neutron_biased.log
 run_and_archive Macros/run_neutron_unbiased.mac Neutron_unbiased_validated run_output_neutron_unbiased.log
 
 run_and_archive Macros/run_alpha_biased.mac      Alpha_1041_validated      run_output_alpha_biased.log
