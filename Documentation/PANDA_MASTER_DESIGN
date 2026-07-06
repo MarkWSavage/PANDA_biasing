@@ -275,6 +275,18 @@ Validation hierarchy:
 
 ---
 
+## Known Limitations
+
+**CREME-MC comparison shoulder** (see `compare_creme_panda.py`, README "Known limitations"):
+
+PANDA's cross-section curve sits roughly 1-2 orders of magnitude above CREME-MC's in the ~2-20 fC collected-charge range (log-RMSE ~0.9 decades over the full curve). This has been confirmed reproducible at both low (1M) and high (10M) primary statistics, so it is not a sampling artifact, and it is present in both the pre-biasing and biasing versions of PANDA, so it is not a regression introduced by cross-section biasing or the raw-charge/event-weight fix.
+
+Root cause: PANDA (Geant4, QGSP_BIC_HP) and CREME-MC use different underlying nuclear reaction model families -- Geant4's cascade/pre-compound physics vs. CREME-MC's semi-empirical nuclear fragmentation cross-sections. Published Geant4-vs-CREME96 comparisons report this same kind of physics-list-dependent discrepancy (see [arXiv:0712.2149](https://arxiv.org/pdf/0712.2149)).
+
+This is not considered fixable within PANDA's own code -- it is a property of comparing across two different nuclear model families, not a defect in transport, charge accumulation, or biasing. Treat sub-decade-scale disagreement against CREME-MC in this charge range as expected.
+
+---
+
 # 11. Coding Philosophy
 
 The Geant4 engine shall remain as simple as possible.
