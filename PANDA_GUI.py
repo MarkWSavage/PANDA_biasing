@@ -163,6 +163,16 @@ class PandaGUI(QWidget):
         self.link_xy_checkbox.toggled.connect(self.on_link_xy_toggled)
         param_layout.addWidget(self.link_xy_checkbox, len(labels)+3, 0, 1, 2)
 
+        self.log_recoil_hits_checkbox = QCheckBox("Log Recoil Hits (recoil_hits.csv)")
+        self.log_recoil_hits_checkbox.setToolTip(
+            "Export one row per energy-depositing hit in the sensitive\n"
+            "volume (species, Z, A, LET in MeV*cm2/mg, position,\n"
+            "EventWeight), filtered to recoils only (excludes proton/e-).\n"
+            "Off by default -- per-step file writes add real overhead\n"
+            "most runs don't need. See README 'Per-hit recoil/LET export'."
+        )
+        param_layout.addWidget(self.log_recoil_hits_checkbox, len(labels)+4, 0, 1, 2)
+
         self.fields['Sensitive XY (um)'].textChanged.connect(self.on_sensitive_xy_changed)
         self.on_link_xy_toggled(self.link_xy_checkbox.isChecked())
 
@@ -348,7 +358,12 @@ class PandaGUI(QWidget):
             f.write(f"/sim/energy {self.fields['Energy (MeV)'].text()} MeV\n")
             f.write(f"/sim/beamXY {self.fields['Beam XY (um)'].text()} um\n")
             f.write(f"/sim/criticalCharge {self.fields['Critical Charge (fC)'].text()}\n")
-            f.write("/sim/verbose false\n\n")
+            f.write("/sim/verbose false\n")
+
+            if self.log_recoil_hits_checkbox.isChecked():
+                f.write("/sim/logRecoilHits true\n")
+
+            f.write("\n")
 
             if self.vis_checkbox.isChecked():
                 f.write("/vis/open OGLSX\n")
@@ -423,7 +438,8 @@ class PandaGUI(QWidget):
                 **{k: v.text() for k, v in self.fields.items()},
                 "visualization": self.vis_checkbox.isChecked(),
                 "collection_model": self.collection_checkbox.isChecked(),
-                "link_xy": self.link_xy_checkbox.isChecked()
+                "link_xy": self.link_xy_checkbox.isChecked(),
+                "log_recoil_hits": self.log_recoil_hits_checkbox.isChecked()
             }
 
             if not filename.endswith(".json"):
@@ -473,6 +489,10 @@ class PandaGUI(QWidget):
 
             self.collection_checkbox.setChecked(
                 data.get("collection_model", True)
+            )
+
+            self.log_recoil_hits_checkbox.setChecked(
+                data.get("log_recoil_hits", False)
             )
 
             self.log(f"Loaded preset: {filename}")
