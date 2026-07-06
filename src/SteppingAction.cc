@@ -81,6 +81,27 @@ void SteppingAction::UserSteppingAction(const G4Step* step)
     hit.stepNumber =
         step->GetTrack()->GetCurrentStepNumber();
 
+    // Recoil-hit export fields -- see Hit.hh. GetAtomicNumber()/
+    // GetAtomicMass() are G4ParticleDefinition members (not G4Ions-
+    // specific): they return 0 for proton/e-/etc, which is fine since
+    // those species are filtered out at export time anyway.
+    hit.stepLength = step->GetStepLength();
+    hit.z = step->GetTrack()->GetParticleDefinition()->GetAtomicNumber();
+    hit.a = step->GetTrack()->GetParticleDefinition()->GetAtomicMass();
+    hit.weight = weight;
+
+    if (hit.stepLength > 0.0)
+    {
+        G4double dEdx = edep / hit.stepLength;
+        G4double density =
+            fDetector->GetSensitiveLogical()->GetMaterial()->GetDensity();
+        hit.let = (dEdx / density) / (MeV * cm2 / mg);
+    }
+    else
+    {
+        hit.let = 0.0;
+    }
+
     auto prePoint  = step->GetPreStepPoint();
     auto postPoint = step->GetPostStepPoint();
 

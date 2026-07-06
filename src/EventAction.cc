@@ -23,6 +23,12 @@ namespace {
         return std::string(kResultsDir) + "/events_t"
              + std::to_string(G4Threading::G4GetThreadId()) + ".csv";
     }
+
+    std::string ThreadRecoilHitsPath()
+    {
+        return std::string(kResultsDir) + "/recoil_hits_t"
+             + std::to_string(G4Threading::G4GetThreadId()) + ".csv";
+    }
 }
 
 EventAction::EventAction()
@@ -39,6 +45,16 @@ EventAction::EventAction()
         "verbose",
         fVerbose,
         "Enable verbose output");
+
+    fMessenger->DeclareProperty(
+        "logRecoilHits",
+        fLogRecoilHits,
+        "Export per-hit recoil-species/LET data to recoil_hits.csv "
+        "(Particle, Z, A, LET_MeV_cm2_mg, position, EventWeight) for "
+        "hits in the sensitive volume, excluding proton/e- steps. Off "
+        "by default -- adds real per-step file-write overhead most "
+        "runs don't need. See EventAction::MergeRecoilHitsOutputs()."
+    );
 
     std::filesystem::create_directories(kResultsDir);
 
@@ -60,6 +76,9 @@ EventAction::~EventAction()
 {
     if (fCSV.is_open())
         fCSV.close();
+
+    if (fRecoilHitsCSV.is_open())
+        fRecoilHitsCSV.close();
 
     delete fMessenger;
 }
@@ -141,6 +160,64 @@ void EventAction::EndOfEventAction(const G4Event* event)
             << " | Upset: "
             << (upsetCharge >= fCriticalCharge ? 1 : 0)
             << G4endl;
+    }
+
+    if (fLogRecoilHits)
+    {
+        // Lazy-open: /sim/logRecoilHits is applied via messenger AFTER
+        // this object's constructor runs (same MT command-ordering
+        // quirk documented for /sim/verbose etc.), so the flag isn't
+        // known yet at construction time. Opening here, on first actual
+        // use, means recoil_hits_t<N>.csv is only ever created for
+        // threads/runs that actually enabled it.
+        if (!fRecoilHitsCSV.is_open())
+        {
+            fRecoilHitsCSV.open(ThreadRecoilHitsPath());
+
+            fRecoilHitsCSV
+                << "EventID,"
+                << "Particle,"
+                << "Z,"
+                << "A,"
+                << "Edep_keV,"
+                << "StepLength_um,"
+                << "LET_MeV_cm2_mg,"
+                << "TrackID,"
+                << "ParentID,"
+                << "Process,"
+                << "Position_X_um,"
+                << "Position_Y_um,"
+                << "Position_Z_um,"
+                << "EventWeight"
+                << G4endl;
+        }
+
+        for (const auto& hit : fHits)
+        {
+            // Recoils only, by default -- proton/e- steps are frequent
+            // and low-value for LET/recoil-species analysis, and would
+            // dominate this file's size for no benefit. See the design
+            // discussion this feature came from.
+            if (hit.particle == "proton" || hit.particle == "e-")
+                continue;
+
+            fRecoilHitsCSV
+                << event->GetEventID() << ","
+                << hit.particle << ","
+                << hit.z << ","
+                << hit.a << ","
+                << hit.edep / keV << ","
+                << hit.stepLength / um << ","
+                << hit.let << ","
+                << hit.trackID << ","
+                << hit.parentID << ","
+                << hit.process << ","
+                << hit.pos.x() / um << ","
+                << hit.pos.y() / um << ","
+                << hit.pos.z() / um << ","
+                << hit.weight
+                << G4endl;
+        }
     }
 }
 
@@ -246,4 +323,67 @@ void EventAction::MergeThreadOutputs()
     G4cout << "EventAction::MergeThreadOutputs() -- merged "
            << threadFiles.size() << " per-thread file(s) into "
            << (dir / "events.csv").string() << G4endl;
+}
+
+void EventAction::MergeRecoilHitsOutputs()
+{
+    namespace fs = std::filesystem;
+
+    const fs::path dir(kResultsDir);
+    const std::string prefix = "recoil_hits_t";
+    const std::string suffix = ".csv";
+
+    std::vector<fs::path> threadFiles;
+
+    for (const auto& entry : fs::directory_iterator(dir))
+    {
+        const std::string name = entry.path().filename().string();
+
+        if (name.size() > prefix.size() + suffix.size()
+            && name.compare(0, prefix.size(), prefix) == 0
+            && name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0)
+        {
+            threadFiles.push_back(entry.path());
+        }
+    }
+
+    // Unlike events.csv, this file is opt-in (/sim/logRecoilHits,
+    // default off) -- no per-thread files existing at all is the
+    // normal case for a run that never enabled it, not an error.
+    if (threadFiles.empty())
+        return;
+
+    std::ofstream merged(dir / "recoil_hits.csv");
+    bool headerWritten = false;
+
+    for (const auto& file : threadFiles)
+    {
+        std::ifstream in(file);
+        std::string line;
+        bool firstLine = true;
+
+        while (std::getline(in, line))
+        {
+            if (firstLine)
+            {
+                firstLine = false;
+
+                if (headerWritten)
+                    continue;
+
+                headerWritten = true;
+            }
+
+            merged << line << "\n";
+        }
+    }
+
+    merged.close();
+
+    for (const auto& file : threadFiles)
+        fs::remove(file);
+
+    G4cout << "EventAction::MergeRecoilHitsOutputs() -- merged "
+           << threadFiles.size() << " per-thread file(s) into "
+           << (dir / "recoil_hits.csv").string() << G4endl;
 }

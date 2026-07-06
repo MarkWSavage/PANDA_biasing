@@ -131,6 +131,10 @@ int main(int argc, char** argv)
     // so every per-thread file is fully written and closed.
     EventAction::MergeThreadOutputs();
 
+    // Same merge, for the optional recoil-hits export (/sim/
+    // logRecoilHits, default off) -- a no-op if it was never enabled.
+    EventAction::MergeRecoilHitsOutputs();
+
     // Cleanup
     delete visManager;
     delete runManager;

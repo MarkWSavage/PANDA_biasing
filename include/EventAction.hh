@@ -75,6 +75,11 @@ public:
     // delete the per-thread files.
     static void MergeThreadOutputs();
 
+    // Same per-thread-file-then-merge pattern as MergeThreadOutputs(),
+    // for the optional recoil-hits export (see /sim/logRecoilHits).
+    // Call alongside MergeThreadOutputs() in PANDA.cc.
+    static void MergeRecoilHitsOutputs();
+
 private:
     std::vector<Hit> fHits;
 
@@ -100,6 +105,14 @@ private:
     G4GenericMessenger* fMessenger = nullptr;
     std::ofstream fCSV;
     G4bool fVerbose = false;
+
+    // Opt-in export of per-hit recoil data (species, Z/A, LET, position)
+    // to recoil_hits.csv, for studying the recoil-species/LET spectrum
+    // rather than just the aggregate Proton/Electron/Recoil_keV sums --
+    // see /sim/logRecoilHits. Off by default: writing every qualifying
+    // step to a second file adds real overhead most runs don't need.
+    G4bool fLogRecoilHits = false;
+    std::ofstream fRecoilHitsCSV;
 };
 
 #endif
