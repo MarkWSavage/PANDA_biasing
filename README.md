@@ -1,5 +1,7 @@
 # PANDA
 
+**Current release: [v1.0.0](https://github.com/MarkWSavage/PANDA/releases/tag/v1.0.0) — Architecture Freeze.** Geant4 engine and `PANDA_Analyze.py` are frozen; see `Documentation/PANDA_MASTER_DESIGN` (Version History) for what that covers.
+
 **PANDA** — *Protons And Neutron charge Deposition in mAterials* — is a Geant4 Monte Carlo simulation for calculating charge deposition from energetic particles (protons, neutrons, ions) in semiconductor structures, for Single Event Effect (SEE) analysis.
 
 The core physical quantity computed is **collected charge** per event; upset probability, cross-section spectra, and other SEE metrics are derived from it in post-processing (`PANDA_Analyze.py`), keeping particle transport and interpretation cleanly separated.
