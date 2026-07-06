@@ -40,18 +40,18 @@ mv Results/Current/events.csv Results/Neutron_1041_validated/events.csv
 grep -A6 "GLOBAL FINAL COUNTS" run_output_neutron_biased.log > Results/Neutron_1041_validated/summary.txt
 echo "=== ARCHIVED: Results/Neutron_1041_validated/ ==="
 
-run_and_archive run_neutron_unbiased.mac Neutron_unbiased_validated run_output_neutron_unbiased.log
+run_and_archive Macros/run_neutron_unbiased.mac Neutron_unbiased_validated run_output_neutron_unbiased.log
 
-run_and_archive run_alpha_biased.mac      Alpha_1041_validated      run_output_alpha_biased.log
-run_and_archive run_alpha_unbiased.mac    Alpha_unbiased_validated  run_output_alpha_unbiased.log
+run_and_archive Macros/run_alpha_biased.mac      Alpha_1041_validated      run_output_alpha_biased.log
+run_and_archive Macros/run_alpha_unbiased.mac    Alpha_unbiased_validated  run_output_alpha_unbiased.log
 
-run_and_archive run_deuteron_biased.mac   Deuteron_1041_validated     run_output_deuteron_biased.log
-run_and_archive run_deuteron_unbiased.mac Deuteron_unbiased_validated run_output_deuteron_unbiased.log
+run_and_archive Macros/run_deuteron_biased.mac   Deuteron_1041_validated     run_output_deuteron_biased.log
+run_and_archive Macros/run_deuteron_unbiased.mac Deuteron_unbiased_validated run_output_deuteron_unbiased.log
 
-run_and_archive run_triton_biased.mac     Triton_1041_validated     run_output_triton_biased.log
-run_and_archive run_triton_unbiased.mac   Triton_unbiased_validated run_output_triton_unbiased.log
+run_and_archive Macros/run_triton_biased.mac     Triton_1041_validated     run_output_triton_biased.log
+run_and_archive Macros/run_triton_unbiased.mac   Triton_unbiased_validated run_output_triton_unbiased.log
 
-run_and_archive run_He3_biased.mac        He3_1041_validated     run_output_He3_biased.log
-run_and_archive run_He3_unbiased.mac      He3_unbiased_validated run_output_He3_unbiased.log
+run_and_archive Macros/run_He3_biased.mac        He3_1041_validated     run_output_He3_biased.log
+run_and_archive Macros/run_He3_unbiased.mac      He3_unbiased_validated run_output_He3_unbiased.log
 
 echo "=== ALL_RUNS_COMPLETE ==="
