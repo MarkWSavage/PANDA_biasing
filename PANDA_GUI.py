@@ -118,6 +118,20 @@ class PandaGUI(QWidget):
         )
         param_layout.addWidget(self.collection_checkbox, len(labels)+2, 0, 1, 2)
 
+        self.link_xy_checkbox = QCheckBox("Link Beam/Dead XY to Sensitive XY")
+        self.link_xy_checkbox.setChecked(True)
+        self.link_xy_checkbox.setToolTip(
+            "Common case: beam spot, dead-layer footprint, and sensitive-\n"
+            "volume footprint all match. Uncheck to set Beam XY and Dead XY\n"
+            "independently -- useful for guard rings (dead area wider than\n"
+            "the active pixel) or a beam spot that doesn't match the pixel."
+        )
+        self.link_xy_checkbox.toggled.connect(self.on_link_xy_toggled)
+        param_layout.addWidget(self.link_xy_checkbox, len(labels)+3, 0, 1, 2)
+
+        self.fields['Sensitive XY (um)'].textChanged.connect(self.on_sensitive_xy_changed)
+        self.on_link_xy_toggled(self.link_xy_checkbox.isChecked())
+
         param_group.setLayout(param_layout)
 
         # ==========================
@@ -241,6 +255,18 @@ class PandaGUI(QWidget):
     def metric_suffix(self):
         return "collected" if self.metric_dropdown.currentText() == "Collected" else "deposited"
 
+    def on_sensitive_xy_changed(self, text):
+        if self.link_xy_checkbox.isChecked():
+            self.fields['Dead XY (um)'].setText(text)
+            self.fields['Beam XY (um)'].setText(text)
+
+    def on_link_xy_toggled(self, checked):
+        self.fields['Dead XY (um)'].setEnabled(not checked)
+        self.fields['Beam XY (um)'].setEnabled(not checked)
+
+        if checked:
+            self.on_sensitive_xy_changed(self.fields['Sensitive XY (um)'].text())
+
     def write_run_mac(self):
         run_mac_path = os.path.join(self.project_dir, "run.mac")
 
@@ -270,6 +296,14 @@ class PandaGUI(QWidget):
 
             if self.vis_checkbox.isChecked():
                 f.write("/vis/open OGLSX\n")
+                # Side-on viewpoint (mostly along +X, slightly elevated
+                # in Z): the dead layer and sensitive volume share the
+                # same XY footprint and are stacked along Z, so a
+                # face-on view down Z (the default) shows only the
+                # sensitive volume's front face -- the dead layer is
+                # directly behind it, fully occluded. This angle shows
+                # both layers as a visible cross-section stack instead.
+                f.write("/vis/viewer/set/viewpointVector 1 0 0.3\n")
                 f.write("/vis/drawVolume\n")
                 f.write("/vis/viewer/set/style wireframe\n")
                 f.write("/vis/viewer/flush\n\n")
@@ -326,7 +360,8 @@ class PandaGUI(QWidget):
                 "particle": self.particle_dropdown.currentText(),
                 **{k: v.text() for k, v in self.fields.items()},
                 "visualization": self.vis_checkbox.isChecked(),
-                "collection_model": self.collection_checkbox.isChecked()
+                "collection_model": self.collection_checkbox.isChecked(),
+                "link_xy": self.link_xy_checkbox.isChecked()
             }
 
             if not filename.endswith(".json"):
@@ -348,6 +383,14 @@ class PandaGUI(QWidget):
 
             self.particle_dropdown.setCurrentText(
                 data.get("particle", "proton")
+            )
+
+            # Set link state first: toggling it may sync Dead/Beam XY
+            # from Sensitive XY, but the field loop below runs after
+            # and restores the actual saved values, so this ordering
+            # can't clobber an explicitly-unlinked preset's values.
+            self.link_xy_checkbox.setChecked(
+                data.get("link_xy", True)
             )
 
             for k in self.fields:
