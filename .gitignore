@@ -8,6 +8,9 @@ Results/
 # Generated via compare_creme_panda.py
 PANDA_vs_CREME.png
 
+# Generated via compare_mcnulty_panda.py
+PANDA_vs_McNulty.png
+
 # Editor/OS cruft
 *.log
 __pycache__/

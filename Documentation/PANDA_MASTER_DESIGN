@@ -350,6 +350,14 @@ Root cause: PANDA (Geant4, QGSP_BIC_HP) and CREME-MC use different underlying nu
 
 This is not considered fixable within PANDA's own code -- it is a property of comparing across two different nuclear model families, not a defect in transport, charge accumulation, or biasing. Treat sub-decade-scale disagreement against CREME-MC in this charge range as expected.
 
+**McNulty et al. comparison under-prediction** (see `compare_mcnulty_panda.py`, README "Known limitations"):
+
+Compared against McNulty et al.'s 148 MeV proton-induced integral cross-section-vs-deposited-energy data (measured and CUPID simulation, digitized from a McNulty-authored review reproduced in DTIC report AD-A285581), using PANDA configured to the same 11.7x11.7x13.5 um silicon sensitive volume. PANDA systematically under-predicts, growing smoothly from ~1.4x at 1 MeV deposited to >100x by 25-28 MeV (log-RMSE ~1.1 decades vs. the experimental curve; ~0.9 decades vs. CUPID).
+
+Root cause: PANDA's sensitive+dead-layer stack sits in a vacuum world (`G4_Galactic`), with no material outside it for a nearby nuclear reaction to occur in. McNulty's CUPID model explicitly included a silicon "surrounding volume" -- this is the actual subject of the 1989 paper this comparison was originally aimed at (El-Teleaty, McNulty, Abdel-Kader, Beauvais, "Soft Fails in Microelectronic Circuits Due to Proton-Induced Nuclear Reactions in Material Surrounding the SEU-Sensitive Volume," Nucl. Instr. and Meth. B40/41, 1300-1305 (1989); that paper's own data table wasn't accessible, hence using the closely related digitized figure instead). The discrepancy growing with deposited energy, rather than being flat across the range, is consistent with surrounding-volume-sourced recoils being the missing contribution: in-volume physics dominates (and roughly agrees) at low deposited energy; distant-recoil contributions matter increasingly at high deposited energy, and PANDA cannot produce those at all with an empty surrounding world.
+
+Not fixable without adding a surrounding-material volume to `DetectorConstruction` -- a real geometry change, not a nuclear-physics-list difference like the CREME-MC discrepancy above. Tracked as a known limitation rather than implemented, since it would touch frozen engine code (see Section 5) and wasn't in scope for this validation pass.
+
 ---
 
 # 11. Coding Philosophy
@@ -387,8 +395,6 @@ These ideas are intentionally deferred.
 * Reaction-by-reaction decomposition
 
 * Automatic χ² validation
-
-* McNulty comparison module
 
 * Elevant comparison module
 

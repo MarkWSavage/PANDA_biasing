@@ -1,0 +1,20 @@
+/random/setSeeds 74819 25361
+/sim/particle proton
+/sim/sensitiveXY 11.7 um
+/sim/deadXY 11.7 um
+/sim/sensitiveThickness 13.5 um
+/sim/deadThickness 0.1 um
+/sim/sensitiveMaterial Si
+/sim/deadMaterial Si
+/sim/biasCrossSectionFactor 1041
+/sim/useCollectionModel true
+/sim/carrierLifetime 1.0 ns
+/sim/electricField 1000000 volt/m
+/run/initialize
+/run/reinitializeGeometry
+
+/sim/energy 148 MeV
+/sim/beamXY 11.7 um
+/sim/criticalCharge 150
+/sim/verbose false
+/run/beamOn 10000000
