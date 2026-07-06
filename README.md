@@ -4,7 +4,11 @@
 
 The core physical quantity computed is **collected charge** per event; upset probability, cross-section spectra, and other SEE metrics are derived from it in post-processing (`PANDA_Analyze.py`), keeping particle transport and interpretation cleanly separated.
 
-Validated against CREME-MC. Includes optional cross-section biasing (`SEEBiasingOperator`) to efficiently sample the rare nuclear-recoil tail, with correct raw-charge/event-weight separation so biased and unbiased runs produce statistically consistent spectra.
+Compared against CREME-MC (see `compare_creme_panda.py`). Includes optional cross-section biasing (`SEEBiasingOperator`) to efficiently sample the rare nuclear-recoil tail, with correct raw-charge/event-weight separation so biased and unbiased runs produce statistically consistent spectra.
+
+## Known limitations
+
+- **CREME-MC comparison shoulder**: PANDA's cross-section curve sits ~1-2 orders of magnitude above CREME-MC's in the ~2-20 fC charge range (log-RMSE ~0.9 decades over the full curve), reproducible at both low and high statistics (i.e. not a sampling artifact). This is expected: PANDA (Geant4, QGSP_BIC_HP) and CREME-MC use different underlying nuclear reaction model families -- Geant4's cascade/pre-compound physics vs. CREME-MC's semi-empirical fragmentation cross-sections -- and published comparisons of Geant4 against CREME96 report exactly this kind of physics-list-dependent discrepancy (see [arXiv:0712.2149](https://arxiv.org/pdf/0712.2149)). Not considered fixable in PANDA's code; treat sub-decade-scale disagreement in this charge range as expected rather than a bug.
 
 ## Build
 
