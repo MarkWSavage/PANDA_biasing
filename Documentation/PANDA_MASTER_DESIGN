@@ -190,6 +190,21 @@ No experimental validation code shall ever be added.
 
 Only bug fixes are permitted.
 
+Bug fix applied (2026-07-06): the charge-threshold bin range was
+hardcoded to `np.logspace(-3, 3, 400)` (0.001-1000 fC), tuned against
+the small default geometry (10um sensitiveXY). `np.histogram` silently
+DROPS values outside the bin range rather than clipping them into the
+edge bins, so any run with a larger sensitive volume depositing more
+than 1000 fC -- e.g. a 500x500x50um geometry, which deposits up to
+~3730 fC -- had those events vanish from the differential spectrum,
+cumulative probability/cross-section curves, and CSV output entirely,
+with no error or warning (only the printed Max statistic, computed
+independently of the histogram, would hint at it). Bins are now sized
+from a first pass over the true observed min/max per run instead of a
+fixed range. Verified: the 500x500x50um case now correctly bins out to
+~3654 fC, and the small default geometry reproduces its previously-
+verified statistics exactly (no regression).
+
 ---
 
 # 6. Future Development
