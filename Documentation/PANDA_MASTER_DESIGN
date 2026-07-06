@@ -123,6 +123,20 @@ Target audience:
 * Monte Carlo Developers
 * Scientific Publications
 
+Scoping note (post-biasing-generalization): the Proton/Electron/Recoil
+breakdown above is only unambiguous for a proton primary. SteppingAction
+classifies every step by literal particle name -- `"proton"` to
+Proton_keV, `"e-"` to Electron_keV, everything else to Recoil_keV -- so
+for a non-proton primary (neutron, alpha, deuteron, triton, He3; see
+Section 5) the primary's own ionization also lands in Recoil_keV,
+mixed in with genuine secondary recoil fragments. `PANDA_Analyze.py`'s
+charge-threshold cross-section output is unaffected (it only uses
+Total_keV/DepositedCharge_fC/CollectedCharge_fC), but any
+PANDAEX_Analyze.py component-spectrum plot for a non-proton run should
+be read with that caveat; it is not itself frozen (Section 6), so this
+is a candidate for the primary-track-ID-based reclassification noted
+as future work rather than a defect to fix in the frozen PANDA engine.
+
 ---
 
 # 5. Architecture Freeze
