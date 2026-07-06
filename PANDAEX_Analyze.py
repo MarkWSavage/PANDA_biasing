@@ -74,9 +74,21 @@ print(f"Efficiency (weighted): {np.sum(nonzero_weight) / N_total:.8e}")
 # ----------------------------
 # Histogram
 # ----------------------------
-bins = np.linspace(
-    0,
-    np.max(nonzero_keV),
+# Log-spaced bins, not linear: post-biasing the data spans several
+# orders of magnitude (common few-keV ionization deposits vs. rare
+# MeV-scale nuclear-recoil tail), and linear bins from 0 to the single
+# largest observed value stretch so wide that the bulk of the
+# distribution collapses into the first bin or two. Range is taken
+# from the smallest and largest nonzero value across ALL FOUR series
+# (not just Total) since a component can be nonzero-but-small in a row
+# where other components dominate the row's Total.
+all_nonzero_keV = np.concatenate([
+    nonzero_keV, proton_nonzero, electron_nonzero, recoil_nonzero
+])
+
+bins = np.logspace(
+    np.log10(np.min(all_nonzero_keV)),
+    np.log10(np.max(all_nonzero_keV)),
     200
 )
 
@@ -104,7 +116,9 @@ hist_recoil, _ = np.histogram(
     weights=recoil_weight
 )
 
-centers = 0.5 * (edges[:-1] + edges[1:])
+# Geometric mean, not arithmetic, is the correct bin-center convention
+# for log-spaced bins (matches PANDA_Analyze.py's bin_centers).
+centers = np.sqrt(edges[:-1] * edges[1:])
 
 
 # ----------------------------
@@ -144,6 +158,7 @@ plt.legend()
 plt.xlabel("Deposited Energy (keV)")
 plt.ylabel("Weighted Counts" if has_weight_column else "Counts")
 plt.title("PANDAEX Raw Deposited Energy Spectrum")
+plt.xscale("log")
 plt.yscale("log")
 
 outfile = os.path.join(
