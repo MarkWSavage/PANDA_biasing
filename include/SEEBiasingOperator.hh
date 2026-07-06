@@ -7,16 +7,27 @@
 #include "globals.hh"
 
 #include <map>
+#include <vector>
 #include <atomic>
 
-// Biases the hadronic INELASTIC process for a chosen particle (protons,
-// for PANDA) by artificially multiplying its interaction cross section
-// by a fixed factor. This follows the standard Geant4 "GB01"-style
-// non-splitting cross-section biasing recipe: G4VBiasingOperator
-// selects a G4BOptnChangeCrossSection operation for the process to be
-// biased; Geant4's biasing framework automatically adjusts the
-// interacting track's weight to compensate, so the biased simulation
-// remains statistically unbiased in expectation.
+// Biases the hadronic INELASTIC process for one or more chosen particle
+// species (e.g. protons as PANDA's primary, plus secondary neutrons
+// produced by the primary's own reactions) by artificially multiplying
+// each species' interaction cross section by its own fixed factor. This
+// follows the standard Geant4 "GB01"-style non-splitting cross-section
+// biasing recipe: G4VBiasingOperator selects a G4BOptnChangeCrossSection
+// operation for the process to be biased; Geant4's biasing framework
+// automatically adjusts the interacting track's weight to compensate, so
+// the biased simulation remains statistically unbiased in expectation.
+//
+// IMPORTANT: Geant4 allows only ONE G4VBiasingOperator to be attached to
+// a given logical volume at a time (AttachTo() on a second operator for
+// an already-attached volume silently fails with a console warning and
+// never actually engages). Biasing multiple species in the same volume
+// -- e.g. a proton primary plus its secondary neutrons in the sensitive/
+// dead/surrounding volumes -- therefore requires ONE operator instance
+// covering all of them, not multiple separate instances. Hence this
+// class takes a list of (species, factor) pairs rather than just one.
 //
 // IMPORTANT (bug history -- read before touching EventAction/
 // SteppingAction scoring): an earlier version of this codebase
@@ -39,20 +50,38 @@
 //
 // Only the hadronic inelastic process is biased here (see
 // ProposeOccurenceBiasingOperation). Elastic scattering and every
-// other process for the target particle is left completely unbiased,
+// other process for each biased species is left completely unbiased,
 // since elastic proton-nucleus recoils in silicon are far too low in
 // energy to meaningfully populate the high-charge SEE tail.
 class SEEBiasingOperator : public G4VBiasingOperator
 {
 public:
-    // particleToBias: e.g. G4Proton::ProtonDefinition()
+    // One species to bias: e.g. { G4Proton::ProtonDefinition(), 1041,
+    // false } for PANDA's primary, or { G4Neutron::NeutronDefinition(),
+    // 1041, true } for secondary neutrons produced by that primary's
+    // own reactions.
+    //
     // crossSectionFactor: multiplier applied to the analog (physical)
-    //   cross section of the biased process, e.g. 1041 to match
-    //   CREME-MC's "Hadronic Cross Section Multiplier". A factor of
-    //   1.0 is a no-op and should reproduce the unbiased baseline --
-    //   always verify with factor=1.0 before trusting a boosted run.
-    SEEBiasingOperator(const G4ParticleDefinition* particleToBias,
-                        G4double crossSectionFactor,
+    //   cross section of this species' hadronic inelastic process,
+    //   e.g. 1041 to match CREME-MC's "Hadronic Cross Section
+    //   Multiplier". A factor of 1.0 is a no-op and should reproduce
+    //   the unbiased baseline -- always verify with factor=1.0 before
+    //   trusting a boosted run.
+    // isSecondaryRole: true if this species is a SECONDARY particle
+    //   (e.g. neutrons produced by a biased proton primary's own
+    //   reactions), not the run's primary species. Ground-truth
+    //   counters are tracked separately per role (see
+    //   fsNumProposedSecondary etc.) so PrintTotals() can report both
+    //   without conflating two different species/factors into one
+    //   number.
+    struct SpeciesBias
+    {
+        const G4ParticleDefinition* particle;
+        G4double crossSectionFactor;
+        G4bool isSecondaryRole;
+    };
+
+    SEEBiasingOperator(const std::vector<SpeciesBias>& speciesBiases,
                         const G4String& name = "SEEBiasingOperator");
     virtual ~SEEBiasingOperator();
 
@@ -102,20 +131,21 @@ private:
         G4VBiasingOperation* finalStateOperationApplied,
         const G4VParticleChange* particleChangeProduced) override;
 
-    const G4ParticleDefinition* fParticleToBias;
-    G4double fCrossSectionFactor;
+    std::vector<SpeciesBias> fSpeciesBiases;
 
     // Hard counters, independent of any downstream event/CSV scoring.
     // STATIC and ATOMIC: shared across every worker thread's operator
     // instance (Geant4 MT creates one SEEBiasingOperator per thread
-    // via ConstructSDandField(), all biasing the same particle/process
-    // with the same factor -- these counters give the true combined
-    // total across the whole run, read via PrintTotals()).
+    // via ConstructSDandField(), all biasing the same species/factors
+    // -- these counters give the true combined total across the whole
+    // run, read via PrintTotals()). Tracked separately per role
+    // (primary vs. secondary) so a secondary species' stats never mix
+    // into the primary's totals.
     //
     // fsNumProposed: how many times ProposeOccurenceBiasingOperation
-    //   actually returned a real (non-null) biasing operation for the
-    //   target particle's inelastic process, i.e. how many times the
-    //   biasing framework was engaged at all for a step.
+    //   actually returned a real (non-null) biasing operation for a
+    //   primary-role species' inelastic process, i.e. how many times
+    //   the biasing framework was engaged at all for a step.
     // fsNumConfirmedInteractions: how many of those proposed
     //   operations were subsequently confirmed as an ACTUAL
     //   interaction by OperationApplied() (via
@@ -127,12 +157,32 @@ private:
     static std::atomic<G4long> fsNumConfirmedInteractions;
     static std::atomic<G4double> fsCrossSectionFactor;
 
-    // One change-cross-section operation per wrapped biasing process
-    // interface on the target particle. Populated in StartRun(); at
-    // runtime, ProposeOccurenceBiasingOperation() decides per-process
-    // whether to actually apply biasing (hadronic inelastic only) or
-    // return nullptr to leave that process fully unbiased.
-    std::map<const G4BiasingProcessInterface*, G4BOptnChangeCrossSection*>
+    // Same three counters, but for secondary-role species.
+    // fsSecondaryRoleUsed records whether any secondary-role species
+    // was ever configured, so PrintTotals() can omit this section
+    // entirely for runs that never used one (the default).
+    static std::atomic<G4long> fsNumProposedSecondary;
+    static std::atomic<G4long> fsNumConfirmedInteractionsSecondary;
+    static std::atomic<G4double> fsCrossSectionFactorSecondary;
+    static std::atomic<bool> fsSecondaryRoleUsed;
+
+    // Per-wrapped-process-interface bookkeeping. Each species' process
+    // manager has its own distinct G4BiasingProcessInterface object(s)
+    // for its wrapped process(es) (populated by
+    // G4GenericBiasingPhysics::PhysicsBias(...) in PANDA.cc), so keying
+    // by that pointer alone already naturally distinguishes species --
+    // a proton track will never present a neutron's callingProcess.
+    // Populated in StartRun(), one entry per species per wrapped
+    // process; ProposeOccurenceBiasingOperation()/OperationApplied()
+    // look up the right operation/factor/role via this map at runtime.
+    struct BiasEntry
+    {
+        G4BOptnChangeCrossSection* operation;
+        G4double crossSectionFactor;
+        G4bool isSecondaryRole;
+    };
+
+    std::map<const G4BiasingProcessInterface*, BiasEntry>
         fChangeCrossSectionOperations;
 };
 

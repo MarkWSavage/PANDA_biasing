@@ -68,10 +68,19 @@ mcnulty_cupid = np.vstack([mcnulty_shared, mcnulty_cupid_tail])
 # Run via Macros/run_mcnulty_148MeV.mac: 148 MeV protons, 11.7x11.7x13.5
 # um silicon sensitive volume (matching CUPID's geometry above), 0.1 um
 # dead layer (McNulty's model has no separate dead layer -- this is as
-# close to "none" as the two-volume geometry allows), cross-section
-# biasing factor 1041 (same validated approach used throughout this
-# repo) to reach the rare-tail statistics needed. Archived at
-# Results/McNulty_148MeV_validated/events.csv.
+# close to "none" as the two-volume geometry allows), a 100 um silicon
+# surrounding volume (matching the sensitive material), and both a
+# primary cross-section bias factor of 1041 and a secondary-neutron
+# bias factor of 1041 to reach the rare-tail statistics needed for both
+# the primary proton's reactions and the secondary neutrons its
+# reactions produce. Archived at Results/McNulty_148MeV_validated/
+# events.csv.
+#
+# The surrounding volume and secondary-neutron biasing were added after
+# an initial comparison run (vacuum world, no secondary biasing) showed
+# PANDA under-predicting by a growing margin with deposited energy --
+# see Documentation/PANDA_MASTER_DESIGN's Known Limitations for the
+# full before/after story and why a real gap remains even with these.
 #
 # McNulty's plot is cross section vs. RAW DEPOSITED ENERGY (not
 # collected charge), so this reads Total_keV directly rather than

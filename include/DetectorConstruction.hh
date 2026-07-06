@@ -64,6 +64,7 @@ private:
     G4Material* ResolveMaterial(const G4String& name);
     G4LogicalVolume* fSensitiveLogical;
     G4LogicalVolume* fDeadLogical = nullptr;
+    G4LogicalVolume* fSurroundingLogical = nullptr;
     G4GenericMessenger* fMessenger;
 
     G4double fStepSize = 0.018*um;
@@ -72,6 +73,23 @@ private:
     G4double fSensitiveThickness = 10*um;
     G4double fDeadThickness = 5*um;
     G4String fParticleName = "proton";
+
+    // Bulk material surrounding the dead+sensitive stack, matching the
+    // sensitive volume's material (e.g. bulk Si around a Si junction).
+    // Needed so nearby nuclear reactions in that surrounding material
+    // can contribute recoils into the sensitive volume -- without it,
+    // the stack sits in vacuum and PANDA under-predicts high-deposited-
+    // energy events (see the McNulty et al. comparison discrepancy in
+    // Documentation/PANDA_MASTER_DESIGN's Known Limitations). 100 um is
+    // a practical default: large enough to capture reactions close
+    // enough to matter, without the prohibitive overhead of containing
+    // a primary's full multi-cm range (a 1 mm surrounding volume made
+    // runs impractically slow -- most of that extra volume is too far
+    // from the sensitive volume to ever contribute a reaching recoil
+    // anyway). Construct() grows these automatically if the sensitive/
+    // dead stack itself is larger (e.g. the 5000 um sensitiveXY preset).
+    G4double fSurroundingXY = 100*um;
+    G4double fSurroundingThickness = 100*um;
 
     // Defaults preserve pre-existing behavior (both volumes were
     // hardcoded to silicon) for any macro that doesn't set these.
@@ -89,6 +107,21 @@ private:
     // reproduces the unbiased baseline before trusting results from a
     // boosted factor.
     G4double fBiasCrossSectionFactor = 1.0;
+
+    // Multiplier applied to neutronInelastic for SECONDARY neutrons
+    // (i.e. not the run's primary particle) in the sensitive + dead +
+    // surrounding volumes. 1.0 = no secondary-neutron bias (default,
+    // preserves existing behavior for every macro that doesn't set
+    // this). The primary-species operator above only ever biases
+    // tracks matching fParticleName -- a proton primary's secondary
+    // neutrons pass through completely unbiased otherwise, and with
+    // silicon's cm-scale neutron mean free path, a second reaction
+    // near the sensitive volume from one is exceedingly rare to sample
+    // without this. Set via /sim/secondaryNeutronBiasFactor. Ignored
+    // (no second operator created) when fParticleName is itself
+    // "neutron", since the primary-species operator already biases
+    // every neutron track, primary and secondary alike, in that case.
+    G4double fSecondaryNeutronBiasFactor = 1.0;
 
 };
 

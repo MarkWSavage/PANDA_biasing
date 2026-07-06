@@ -7,6 +7,7 @@
 /sim/sensitiveMaterial Si
 /sim/deadMaterial Si
 /sim/biasCrossSectionFactor 1041
+/sim/secondaryNeutronBiasFactor 1041
 /sim/useCollectionModel true
 /sim/carrierLifetime 1.0 ns
 /sim/electricField 1000000 volt/m

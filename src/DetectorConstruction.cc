@@ -15,6 +15,7 @@
 #include "SEEBiasingOperator.hh"
 
 #include <algorithm>
+#include <vector>
 
 DetectorConstruction::DetectorConstruction()
 {
@@ -121,6 +122,31 @@ auto& stepCmd =
     );
 stepCmd.SetStates(G4State_PreInit, G4State_Idle);
 
+auto& surrXYCmd =
+    fMessenger->DeclarePropertyWithUnit(
+        "surroundingXY",
+        "um",
+        fSurroundingXY,
+        "Lateral (X/Y) size of the bulk material surrounding the dead+"
+        "sensitive stack, matching the sensitive volume's material. "
+        "Auto-grown at construction time if the dead/sensitive stack "
+        "itself is larger. Default 100 um -- large enough to capture "
+        "nearby nuclear reactions contributing recoils into the "
+        "sensitive volume, without the overhead of containing a "
+        "primary particle's full range (typically cm-scale, but "
+        "reactions that far away essentially never reach the "
+        "sensitive volume anyway).");
+surrXYCmd.SetStates(G4State_PreInit, G4State_Idle);
+
+auto& surrThickCmd =
+    fMessenger->DeclarePropertyWithUnit(
+        "surroundingThickness",
+        "um",
+        fSurroundingThickness,
+        "Thickness of the surrounding bulk material -- see "
+        "surroundingXY.");
+surrThickCmd.SetStates(G4State_PreInit, G4State_Idle);
+
 auto& biasCmd =
     fMessenger->DeclareProperty(
         "biasCrossSectionFactor",
@@ -133,6 +159,23 @@ auto& biasCmd =
         "unbiased baseline before trusting a boosted run."
     );
 biasCmd.SetStates(G4State_PreInit, G4State_Idle);
+
+auto& secondaryNeutronBiasCmd =
+    fMessenger->DeclareProperty(
+        "secondaryNeutronBiasFactor",
+        fSecondaryNeutronBiasFactor,
+        "Multiplier on neutronInelastic for SECONDARY neutrons (not "
+        "the run's primary particle) in the sensitive+dead+surrounding "
+        "volumes. 1.0 = no secondary-neutron bias (default). The "
+        "primary-species biasing operator only ever biases tracks "
+        "matching /sim/particle -- a proton primary's secondary "
+        "neutrons pass through completely unbiased otherwise, and "
+        "with silicon's cm-scale neutron mean free path, a second "
+        "reaction near the sensitive volume from one is exceedingly "
+        "rare to sample without this. Ignored if /sim/particle is "
+        "itself neutron (already covered by the primary operator)."
+    );
+secondaryNeutronBiasCmd.SetStates(G4State_PreInit, G4State_Idle);
 
 }
 
@@ -151,18 +194,26 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
     auto sensitiveMaterial = ResolveMaterial(fSensitiveMaterialName);
     auto deadMaterial      = ResolveMaterial(fDeadMaterialName);
 
-    // Dynamically size world based on geometry
-    G4double worldXY =
-        20.0 * std::max(fSensitiveXY, fDeadXY);
-
+    // Surrounding volume matches the sensitive volume's material (bulk
+    // substrate the junction is fabricated in). Grow it automatically
+    // if the dead/sensitive stack itself is larger than the requested
+    // surrounding size -- otherwise a large-sensitive-volume preset
+    // (e.g. 5000 um) wouldn't fit inside a 1 mm default surrounding
+    // box, which Geant4 would reject as an invalid mother/daughter
+    // overlap.
     G4double totalThickness =
         fDeadThickness + fSensitiveThickness;
 
-    G4double worldZ =
-        50.0 * totalThickness;
-    
-    if(worldZ < 1*mm)
-        worldZ = 1*mm;
+    G4double surroundingXY =
+        std::max(fSurroundingXY, 1.2 * std::max(fSensitiveXY, fDeadXY));
+
+    G4double surroundingThickness =
+        std::max(fSurroundingThickness, 1.2 * totalThickness);
+
+    // Thin vacuum margin around the surrounding volume (Geant4's
+    // outermost placed volume convention).
+    G4double worldXY = 1.2 * surroundingXY;
+    G4double worldZ  = 1.2 * surroundingThickness;
 
     auto solidWorld =
         new G4Box(
@@ -191,6 +242,41 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
         );
 
     logicWorld->SetVisAttributes(G4VisAttributes::GetInvisible());
+
+    // Bulk material surrounding the dead+sensitive stack -- see
+    // fSurroundingXY/fSurroundingThickness in the header for why this
+    // exists (nearby nuclear reactions contributing recoils into the
+    // sensitive volume; PANDA under-predicts high-deposited-energy
+    // events without it -- see Known Limitations in
+    // Documentation/PANDA_MASTER_DESIGN).
+    auto solidSurrounding =
+        new G4Box(
+            "SurroundingVolume",
+            surroundingXY/2,
+            surroundingXY/2,
+            surroundingThickness/2
+        );
+
+    auto logicSurrounding =
+        new G4LogicalVolume(
+            solidSurrounding,
+            sensitiveMaterial,
+            "SurroundingVolume"
+        );
+
+    logicSurrounding->SetVisAttributes(G4VisAttributes::GetInvisible());
+
+    fSurroundingLogical = logicSurrounding;
+
+    new G4PVPlacement(
+        nullptr,
+        G4ThreeVector(),
+        logicSurrounding,
+        "SurroundingVolume",
+        logicWorld,
+        false,
+        0
+    );
 
     // Dead layer directly below sensitive volume
     auto solidDead =
@@ -223,7 +309,7 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
         ),
         logicDead,
         "DeadLayer",
-        logicWorld,
+        logicSurrounding,
         false,
         0
     );
@@ -260,7 +346,7 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
         G4ThreeVector(0,0,0),
         fSensitiveLogical,
         "SensitiveVolume",
-        logicWorld,
+        logicSurrounding,
         false,
         0
     );
@@ -451,15 +537,45 @@ void DetectorConstruction::ConstructSDandField()
         );
     }
 
-    auto* biasingOperator =
-        new SEEBiasingOperator(
-            primaryDef,
-            fBiasCrossSectionFactor
+    // Geant4 allows only one G4VBiasingOperator attached per logical
+    // volume, so biasing both the primary species and secondary
+    // neutrons in the same volumes requires ONE operator instance
+    // covering both, not two separate instances (an earlier version of
+    // this code tried two instances; AttachTo() silently refused the
+    // second one for each volume, logging "can not be attached ...
+    // already used by another operator" and leaving secondary-neutron
+    // biasing completely inert). See SEEBiasingOperator.hh.
+    std::vector<SEEBiasingOperator::SpeciesBias> speciesBiases;
+    speciesBiases.push_back({primaryDef, fBiasCrossSectionFactor, false});
+
+    // Secondary neutrons (e.g. produced by a proton primary's own
+    // reactions) are NOT biased by the primary entry above -- it only
+    // ever biases tracks matching fParticleName. Skip adding a second
+    // entry when the primary itself is neutron: that entry already
+    // biases every neutron track, primary and secondary alike, so a
+    // duplicate entry for the same species/process would be redundant.
+    if (fParticleName != "neutron" && fSecondaryNeutronBiasFactor != 1.0)
+    {
+        G4ParticleDefinition* neutronDef =
+            G4ParticleTable::GetParticleTable()->FindParticle("neutron");
+
+        speciesBiases.push_back(
+            {neutronDef, fSecondaryNeutronBiasFactor, true}
         );
+    }
+
+    auto* biasingOperator = new SEEBiasingOperator(speciesBiases);
 
     if (fSensitiveLogical)
         biasingOperator->AttachTo(fSensitiveLogical);
 
     if (fDeadLogical)
         biasingOperator->AttachTo(fDeadLogical);
+
+    // The surrounding volume needs biasing too -- otherwise the rare
+    // nearby reactions it exists to capture would be just as
+    // statistically hard to sample as everywhere else was before
+    // biasing existed, defeating the purpose of adding it.
+    if (fSurroundingLogical)
+        biasingOperator->AttachTo(fSurroundingLogical);
 }

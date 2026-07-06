@@ -17,19 +17,33 @@ std::atomic<G4long> SEEBiasingOperator::fsNumProposed{0};
 std::atomic<G4long> SEEBiasingOperator::fsNumConfirmedInteractions{0};
 std::atomic<G4double> SEEBiasingOperator::fsCrossSectionFactor{1.0};
 
+std::atomic<G4long> SEEBiasingOperator::fsNumProposedSecondary{0};
+std::atomic<G4long> SEEBiasingOperator::fsNumConfirmedInteractionsSecondary{0};
+std::atomic<G4double> SEEBiasingOperator::fsCrossSectionFactorSecondary{1.0};
+std::atomic<bool> SEEBiasingOperator::fsSecondaryRoleUsed{false};
+
 SEEBiasingOperator::SEEBiasingOperator(
-    const G4ParticleDefinition* particleToBias,
-    G4double crossSectionFactor,
+    const std::vector<SpeciesBias>& speciesBiases,
     const G4String& name)
 : G4VBiasingOperator(name),
-  fParticleToBias(particleToBias),
-  fCrossSectionFactor(crossSectionFactor)
+  fSpeciesBiases(speciesBiases)
 {
-    // All threads construct their operator with the same factor (it
-    // comes from the same run.mac setting), so this write is racy in
-    // principle but harmless in practice -- every thread writes the
-    // same value.
-    fsCrossSectionFactor.store(crossSectionFactor);
+    // All threads construct their operator with the same factors (they
+    // come from the same run.mac settings), so these writes are racy
+    // in principle but harmless in practice -- every thread writes the
+    // same values.
+    for (const auto& sb : fSpeciesBiases)
+    {
+        if (sb.isSecondaryRole)
+        {
+            fsCrossSectionFactorSecondary.store(sb.crossSectionFactor);
+            fsSecondaryRoleUsed.store(true);
+        }
+        else
+        {
+            fsCrossSectionFactor.store(sb.crossSectionFactor);
+        }
+    }
 }
 
 SEEBiasingOperator::~SEEBiasingOperator()
@@ -41,7 +55,7 @@ SEEBiasingOperator::~SEEBiasingOperator()
     // and never explicitly deleted, matching common Geant4 biasing
     // example patterns).
     for (auto& kv : fChangeCrossSectionOperations)
-        delete kv.second;
+        delete kv.second.operation;
 }
 
 void SEEBiasingOperator::PrintTotals()
@@ -52,7 +66,7 @@ void SEEBiasingOperator::PrintTotals()
 
     G4cout << G4endl;
     G4cout << "=======================================================" << G4endl;
-    G4cout << "SEEBiasingOperator -- GLOBAL FINAL COUNTS" << G4endl;
+    G4cout << "SEEBiasingOperator -- GLOBAL FINAL COUNTS (primary)" << G4endl;
     G4cout << "(all worker threads combined; ground truth, independent"
            << " of CSV/Recoil_keV/Proton_keV scoring)" << G4endl;
     G4cout << "    Cross section factor used   : " << factor << G4endl;
@@ -73,60 +87,101 @@ void SEEBiasingOperator::PrintTotals()
     }
     G4cout << "=======================================================" << G4endl;
     G4cout << G4endl;
+
+    if (fsSecondaryRoleUsed.load())
+    {
+        G4long proposedSec = fsNumProposedSecondary.load();
+        G4long confirmedSec = fsNumConfirmedInteractionsSecondary.load();
+        G4double factorSec = fsCrossSectionFactorSecondary.load();
+
+        G4cout << "=======================================================" << G4endl;
+        G4cout << "SEEBiasingOperator -- GLOBAL FINAL COUNTS (secondary neutron)" << G4endl;
+        G4cout << "    Cross section factor used   : " << factorSec << G4endl;
+        G4cout << "    Proposed biasing operations : " << proposedSec << G4endl;
+        G4cout << "    Confirmed real interactions : " << confirmedSec << G4endl;
+        if (proposedSec > 0)
+        {
+            G4cout << "    Confirmed/Proposed ratio    : "
+                   << (G4double)confirmedSec / proposedSec
+                   << " (expect ~= 1/crossSectionFactor = "
+                   << 1.0 / factorSec << ")" << G4endl;
+        }
+        else
+        {
+            G4cout << "    WARNING: zero proposed operations -- secondary-"
+                   << "neutron biasing never engaged at all." << G4endl;
+        }
+        G4cout << "=======================================================" << G4endl;
+        G4cout << G4endl;
+    }
 }
 
 void SEEBiasingOperator::StartRun()
 {
     // Create one change-cross-section operation for every physics
-    // process wrapped for biasing on the target particle (this is
-    // populated by G4GenericBiasingPhysics::PhysicsBias(...) called
-    // in PANDA.cc, which explicitly wraps only "protonInelastic").
-    // Each is a candidate; ProposeOccurenceBiasingOperation below
-    // decides at runtime whether a given wrapped process is actually
-    // the hadronic inelastic process we want to bias -- all others
-    // are left unbiased (nullptr returned for them).
-    const G4ProcessManager* processManager =
-        fParticleToBias->GetProcessManager();
-
-    const G4BiasingProcessSharedData* sharedData =
-        G4BiasingProcessInterface::GetSharedData(processManager);
-
-    if (!sharedData)
+    // process wrapped for biasing, for every species this operator
+    // covers (this is populated by
+    // G4GenericBiasingPhysics::PhysicsBias(...) called in PANDA.cc,
+    // which wraps each species' own inelastic process name -- e.g.
+    // "protonInelastic", "neutronInelastic"). Each is a candidate;
+    // ProposeOccurenceBiasingOperation below decides at runtime
+    // whether a given wrapped process is actually the hadronic
+    // inelastic process we want to bias -- all others are left
+    // unbiased (nullptr returned for them).
+    for (const auto& sb : fSpeciesBiases)
     {
-        G4cout << "SEEBiasingOperator::StartRun() -- WARNING: no biasing "
-               << "shared data found for " << fParticleToBias->GetParticleName()
-               << ". Biasing will have NO EFFECT. Check that PhysicsBias(...) "
-               << "was called for this particle in PANDA.cc." << G4endl;
-        return;
-    }
+        const G4ProcessManager* processManager =
+            sb.particle->GetProcessManager();
 
-    G4cout << "SEEBiasingOperator::StartRun() -- wrapped process(es) for "
-           << fParticleToBias->GetParticleName() << " biasing:" << G4endl;
+        const G4BiasingProcessSharedData* sharedData =
+            G4BiasingProcessInterface::GetSharedData(processManager);
 
-    for (std::size_t i = 0;
-         i < sharedData->GetPhysicsBiasingProcessInterfaces().size();
-         ++i)
-    {
-        const G4BiasingProcessInterface* wrapperProcess =
-            sharedData->GetPhysicsBiasingProcessInterfaces()[i];
+        if (!sharedData)
+        {
+            G4cout << "SEEBiasingOperator::StartRun() -- WARNING: no biasing "
+                   << "shared data found for " << sb.particle->GetParticleName()
+                   << ". Biasing will have NO EFFECT for this species. Check "
+                   << "that PhysicsBias(...) was called for it in PANDA.cc."
+                   << G4endl;
+            continue;
+        }
 
-        G4String wrappedName =
-            wrapperProcess->GetWrappedProcess()->GetProcessName();
+        G4cout << "SEEBiasingOperator::StartRun() -- wrapped process(es) for "
+               << sb.particle->GetParticleName() << " biasing:" << G4endl;
 
-        G4cout << "    - " << wrappedName << G4endl;
+        for (std::size_t i = 0;
+             i < sharedData->GetPhysicsBiasingProcessInterfaces().size();
+             ++i)
+        {
+            const G4BiasingProcessInterface* wrapperProcess =
+                sharedData->GetPhysicsBiasingProcessInterfaces()[i];
 
-        G4String operationName = "XSboost-" + wrappedName;
+            G4String wrappedName =
+                wrapperProcess->GetWrappedProcess()->GetProcessName();
 
-        fChangeCrossSectionOperations[wrapperProcess] =
-            new G4BOptnChangeCrossSection(operationName);
+            G4cout << "    - " << wrappedName << G4endl;
+
+            G4String operationName = "XSboost-" + wrappedName;
+
+            fChangeCrossSectionOperations[wrapperProcess] = BiasEntry{
+                new G4BOptnChangeCrossSection(operationName),
+                sb.crossSectionFactor,
+                sb.isSecondaryRole
+            };
+        }
     }
 }
 
 G4VBiasingOperation* SEEBiasingOperator::ProposeOccurenceBiasingOperation(
-    const G4Track* track,
+    const G4Track* /*track*/,
     const G4BiasingProcessInterface* callingProcess)
 {
-    if (track->GetDefinition() != fParticleToBias)
+    // Keying by callingProcess alone already selects the right species:
+    // each species has its own distinct wrapped-process interface
+    // object(s) (populated per-species in StartRun()), so a track of a
+    // species this operator doesn't cover simply won't be found here.
+    auto it = fChangeCrossSectionOperations.find(callingProcess);
+    if (it == fChangeCrossSectionOperations.end())
         return nullptr;
 
     // Only bias the hadronic INELASTIC process. Elastic scattering
@@ -151,18 +206,17 @@ G4VBiasingOperation* SEEBiasingOperator::ProposeOccurenceBiasingOperation(
 
     G4double analogXS = 1.0 / analogInteractionLength;
 
-    G4BOptnChangeCrossSection* operation =
-        fChangeCrossSectionOperations[callingProcess];
+    BiasEntry& entry = it->second;
 
-    if (!operation)
-        return nullptr;
+    entry.operation->SetBiasedCrossSection(entry.crossSectionFactor * analogXS);
+    entry.operation->Sample();
 
-    operation->SetBiasedCrossSection(fCrossSectionFactor * analogXS);
-    operation->Sample();
+    if (entry.isSecondaryRole)
+        ++fsNumProposedSecondary;
+    else
+        ++fsNumProposed;
 
-    ++fsNumProposed;
-
-    return operation;
+    return entry.operation;
 }
 
 void SEEBiasingOperator::OperationApplied(
@@ -173,12 +227,19 @@ void SEEBiasingOperator::OperationApplied(
     G4VBiasingOperation* /*finalStateOperationApplied*/,
     const G4VParticleChange* /*particleChangeProduced*/)
 {
-    G4BOptnChangeCrossSection* operation =
-        fChangeCrossSectionOperations[callingProcess];
+    auto it = fChangeCrossSectionOperations.find(callingProcess);
+    if (it == fChangeCrossSectionOperations.end())
+        return;
 
-    if (operation == occurenceOperationApplied)
+    BiasEntry& entry = it->second;
+
+    if (entry.operation == occurenceOperationApplied)
     {
-        operation->SetInteractionOccured();
-        ++fsNumConfirmedInteractions;
+        entry.operation->SetInteractionOccured();
+
+        if (entry.isSecondaryRole)
+            ++fsNumConfirmedInteractionsSecondary;
+        else
+            ++fsNumConfirmedInteractions;
     }
 }
