@@ -1,5 +1,5 @@
 /random/setSeeds 12345 67890
-/sim/particle proton
+/sim/particle alpha
 /sim/sensitiveXY 500 um
 /sim/deadXY 500 um
 /sim/sensitiveThickness 50 um
@@ -13,6 +13,7 @@
 
 /sim/energy 200 MeV
 /sim/beamXY 500 um
-/sim/criticalCharge 150
+/sim/criticalCharge 80
 /sim/verbose false
+
 /run/beamOn 10000000
