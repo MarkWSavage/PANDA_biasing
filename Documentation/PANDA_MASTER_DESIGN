@@ -137,6 +137,18 @@ be read with that caveat; it is not itself frozen (Section 6), so this
 is a candidate for the primary-track-ID-based reclassification noted
 as future work rather than a defect to fix in the frozen PANDA engine.
 
+The same ambiguity exists in reverse for a proton-primary run: a
+secondary proton produced by a `protonInelastic` reaction (knock-out/
+evaporation) is, by the same by-name classification, indistinguishable
+from the primary's own ionization -- both land in Proton_keV. Measured
+directly (temporary trackID==1-vs->1 diagnostic instrumentation in
+SteppingAction, weighted by EventWeight, 1M-primary biased proton run,
+2026-07-06): secondary protons contribute only ~0.026% of Proton_keV's
+weighted total. At 200 MeV in silicon, `protonInelastic` overwhelmingly
+produces heavier recoil fragments rather than secondary protons, so in
+practice `PANDAEX_Analyze.py`'s Proton curve can be treated as
+primary-ionization-only for a proton-primary run.
+
 ---
 
 # 5. Architecture Freeze
