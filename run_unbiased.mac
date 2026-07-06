@@ -1,0 +1,20 @@
+/random/setSeeds 24680 13579
+/sim/particle proton
+/sim/energy 200 MeV
+/sim/sensitiveXY 10 um
+/sim/sensitiveThickness 8 um
+/sim/deadThickness 5 um
+/sim/beamXY 10 um
+/sim/criticalCharge 150
+/sim/useCollectionModel true
+
+/sim/biasCrossSectionFactor 1
+
+/sim/carrierLifetime 1.0 ns
+/sim/electricField 1000000 volt/m
+/sim/verbose false
+
+/run/initialize
+/run/reinitializeGeometry
+
+/run/beamOn 10000000
