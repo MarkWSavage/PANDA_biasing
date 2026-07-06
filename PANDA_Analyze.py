@@ -89,7 +89,44 @@ METRICS = {
     },
 }
 
-bins = np.logspace(-3, 3, 400)
+events_csv_path = os.path.join(RESULTS_DIR, "events.csv")
+csv_header = pd.read_csv(events_csv_path, nrows=0).columns.tolist()
+has_weight_column = "EventWeight" in csv_header
+
+# -----------------------------
+# First pass: find the true charge range
+# -----------------------------
+# A fixed 1e-3..1e3 fC bin range worked for the small default geometry
+# this was tuned against, but silently breaks for a larger sensitive
+# volume: np.histogram DROPS values outside [bins[0], bins[-1]]
+# entirely rather than clipping them into the edge bins, so any run
+# depositing more than 1000 fC (e.g. a bigger sensitiveXY/thickness)
+# had those events vanish from every histogram, cumulative curve, and
+# CSV output -- invisible unless you noticed the printed Max exceeded
+# 1000 fC. Bins are now sized from the real observed range instead.
+global_min = {key: np.inf for key in METRICS}
+global_max = {key: -np.inf for key in METRICS}
+
+for chunk in pd.read_csv(
+    events_csv_path,
+    usecols=list(METRICS.keys()),
+    chunksize=1000000
+):
+    for key in METRICS:
+        q = chunk[key].values
+        positive = q[q > 0]
+        if positive.size:
+            global_min[key] = min(global_min[key], np.min(positive))
+        if q.size:
+            global_max[key] = max(global_max[key], np.max(q))
+
+# Shared bins across both metrics -- keeps the Deposited/Collected
+# plots and CSVs on a directly comparable charge-threshold grid, same
+# as the previous single hardcoded `bins`.
+range_min = min(v for v in global_min.values() if np.isfinite(v))
+range_max = max(v for v in global_max.values() if np.isfinite(v))
+
+bins = np.logspace(np.log10(range_min), np.log10(range_max), 400)
 bin_centers = np.sqrt(bins[:-1] * bins[1:])
 
 stats = {
@@ -104,11 +141,8 @@ stats = {
 }
 
 # -----------------------------
-# Stream CSV once, updating all metrics together
+# Second pass: stream CSV, updating all metrics together
 # -----------------------------
-events_csv_path = os.path.join(RESULTS_DIR, "events.csv")
-csv_header = pd.read_csv(events_csv_path, nrows=0).columns.tolist()
-has_weight_column = "EventWeight" in csv_header
 
 if has_weight_column:
     usecols = list(METRICS.keys()) + ["EventWeight"]
