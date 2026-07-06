@@ -131,7 +131,7 @@ The following components are considered frozen.
 
 ## PANDA
 
-Frozen.
+Frozen, scoped to the original unbiased baseline (`~/geant4/PANDA`).
 
 No modifications shall be made to:
 
@@ -143,9 +143,16 @@ No modifications shall be made to:
 * Sensitive detector
 * Output format
 
-Exception:
+Exceptions:
 
-Configurable maximum step size inside the sensitive volume.
+* Configurable maximum step size inside the sensitive volume.
+
+* **Cross-section biasing** (this repo, `PANDA_biasing`): a deliberately scoped, sanctioned exception to the freeze above, made to speed up sampling of the rare nuclear-recoil tail. In scope for this exception:
+  * Physics list: wrapping the hadronic inelastic process per biased species via `G4GenericBiasingPhysics` (`PANDA.cc`), and `SEEBiasingOperator`.
+  * EventAction / SteppingAction: raw-charge/event-weight separation (`UpdateEventWeight`), required so a biased run's charge spectrum stays statistically correct -- see the bug-history comments in `EventAction.hh`/`SteppingAction.cc`.
+  * DetectorConstruction: `/sim/particle` (moved here from PrimaryGeneratorAction) and `/sim/deadXY`, needed to generalize biasing beyond protons.
+  * Output format: `events.csv` gained one column, `EventWeight`.
+  * Everything else -- geometry model, charge calculation (3.6 eV/pair), sensitive detector logic -- remains frozen exactly as in the unbiased baseline; only what's listed above is in scope for `PANDA_biasing` to touch. Any further change to PANDA beyond continuing this biasing work should be treated as a new, separately-justified exception, not an implicit reopening of the freeze.
 
 ---
 
