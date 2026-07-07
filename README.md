@@ -1,6 +1,6 @@
 # PANDA
 
-**Current release: [v1.3.0](https://github.com/MarkWSavage/PANDA/releases/tag/v1.3.0) — Per-Hit Recoil/LET Export.** Optional per-hit recoil-species/LET output (see "Per-hit recoil/LET export" below), documented as a scoped exception to the [v1.0.0](https://github.com/MarkWSavage/PANDA/releases/tag/v1.0.0) Architecture Freeze; see `Documentation/PANDA_MASTER_DESIGN` (Section 5, Version History) for what's frozen and what's in scope.
+**Current release: [v1.4.0](https://github.com/MarkWSavage/PANDA/releases/tag/v1.4.0) — Per-Species Recoil LET Analysis.** `PANDAEX_Analyze.py` now analyzes the per-hit recoil/LET output added in [v1.3.0](https://github.com/MarkWSavage/PANDA/releases/tag/v1.3.0) (see "Per-hit recoil/LET export" below), producing a per-species summary table and a differential LET spectrum plot. See `Documentation/PANDA_MASTER_DESIGN` (Section 5, Version History) for what's frozen and what's in scope.
 
 **PANDA** — *Protons And Neutron charge Deposition in mAterials* — is a Geant4 Monte Carlo simulation for calculating charge deposition from energetic particles (protons, neutrons, ions) in semiconductor structures, for Single Event Effect (SEE) analysis.
 
@@ -20,6 +20,8 @@ The sensitive volume's material also selects the pair-creation energy and carrie
 ## Per-hit recoil/LET export
 
 Set `/sim/logRecoilHits true` (default `false`) to additionally write `Results/Current/recoil_hits.csv`, one row per energy-depositing hit in the sensitive volume (species, Z, A, LET in MeV·cm²/mg, position, EventWeight), filtered to recoils only (excludes `proton`/`e-`). This is a finer-grained companion to `events.csv`'s per-event `Proton_keV`/`Electron_keV`/`Recoil_keV` sums -- useful for studying the recoil-species/LET spectrum directly, e.g. checking where the highest LET a given recoil species reaches actually lands (a common reference point: silicon recoils are often cited as topping out around LET~12, informing the assumption that heavy-ion hardness above LET=20 implies proton/neutron-SEE immunity). Off by default since per-step file writes add real overhead most runs don't need.
+
+Run `python3 PANDAEX_Analyze.py` to analyze it: a per-species summary table (count, weighted count, Z, A, max/mean LET, saved as `PANDAEX_recoil_species_summary.csv`) and a differential LET spectrum plot (`PANDAEX_LET_spectrum.png`, overall plus the top species by hit count). Falls back gracefully if `recoil_hits.csv` doesn't exist.
 
 ## Known limitations
 
