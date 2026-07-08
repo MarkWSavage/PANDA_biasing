@@ -243,8 +243,17 @@ else:
 
     let_positive = let[let > 0]
 
+    # Floor the spectrum's range at 1e-4 MeV*cm2/mg: a handful of steps
+    # (mostly deuteron/light-fragment msc/Transportation steps with
+    # near-zero edep) have real but physically uninteresting LET down
+    # to ~1e-19, which stretches the log-scale x-axis across 20+
+    # decades and squashes the actual nuclear-recoil peak into a
+    # sliver. Values below the floor are outside the histogram range
+    # and are simply not counted (np.histogram default behavior).
+    LET_PLOT_FLOOR = 1e-4
+
     let_bins = np.logspace(
-        np.log10(let_positive.min()),
+        np.log10(max(let_positive.min(), LET_PLOT_FLOOR)),
         np.log10(let_positive.max()),
         100
     )

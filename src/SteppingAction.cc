@@ -90,7 +90,19 @@ void SteppingAction::UserSteppingAction(const G4Step* step)
     hit.a = step->GetTrack()->GetParticleDefinition()->GetAtomicMass();
     hit.weight = weight;
 
-    if (hit.stepLength > 0.0)
+    // Geant4's navigator can emit near-zero-length "steps" when a track
+    // sits within floating-point tolerance of a geometric boundary
+    // (default surface tolerance ~1e-9 mm). Dividing edep by such a
+    // step length produces spuriously enormous LET -- seen in practice
+    // as an Al recoil reporting LET ~680 MeV*cm2/mg from a 1.6 pm
+    // "step" -- that reflects navigator noise, not the recoil's real
+    // energy loss. Below this cutoff the hit is excluded from the
+    // per-hit LET export entirely (see below); its edep is still tiny
+    // (sub-keV) and remains in the event's energy totals either way.
+    static const G4double kMinLETStepLength = 1.0 * nm;
+    G4bool validLETStep = (hit.stepLength >= kMinLETStepLength);
+
+    if (validLETStep)
     {
         G4double dEdx = edep / hit.stepLength;
         G4double density =
@@ -139,8 +151,11 @@ void SteppingAction::UserSteppingAction(const G4Step* step)
             ? postPoint->GetProcessDefinedStep()->GetProcessName()
             : G4String("unknown");
 
-    // Store hit
-    fEventAction->AddHit(hit);
+    // Store hit -- skip the tolerance-artifact steps identified above so
+    // they don't pollute the per-hit LET export/spectrum with a bogus
+    // (near-zero-stepLength, near-zero-edep) data point.
+    if (validLETStep)
+        fEventAction->AddHit(hit);
 
     // Collected-charge model.
     // This is ALWAYS evaluated so that both the raw deposited charge
