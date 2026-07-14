@@ -1,6 +1,7 @@
 #include "DetectorConstruction.hh"
 #include "G4RunManager.hh"
 #include "EventAction.hh"
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -290,8 +291,19 @@ void EventAction::MergeThreadOutputs()
         }
     }
 
+    // events.csv has 9 columns (see the header written in the
+    // constructor). A per-thread file can end up with a torn/glued
+    // line -- e.g. two overlapping PANDA runs both pointed at
+    // kResultsDir at once, racing unsynchronized writes onto the same
+    // events_t<N>.csv path -- so check field count here rather than
+    // trust it's well-formed; a malformed line otherwise silently
+    // breaks every downstream pandas read_csv() with an opaque
+    // "Expected 9 fields" C-parser error, far from this file.
+    constexpr int kExpectedFields = 9;
+
     std::ofstream merged(dir / "events.csv");
     bool headerWritten = false;
+    int droppedLines = 0;
 
     for (const auto& file : threadFiles)
     {
@@ -309,6 +321,14 @@ void EventAction::MergeThreadOutputs()
                     continue; // skip repeated header from later files
 
                 headerWritten = true;
+                merged << line << "\n";
+                continue;
+            }
+
+            if (std::count(line.begin(), line.end(), ',') + 1 != kExpectedFields)
+            {
+                ++droppedLines;
+                continue;
             }
 
             merged << line << "\n";
@@ -316,6 +336,15 @@ void EventAction::MergeThreadOutputs()
     }
 
     merged.close();
+
+    if (droppedLines > 0)
+    {
+        G4cerr << "EventAction::MergeThreadOutputs() -- WARNING: dropped "
+               << droppedLines << " malformed line(s) while merging "
+               << "(wrong field count -- check for another PANDA run "
+               << "having written to " << dir.string()
+               << " concurrently)" << G4endl;
+    }
 
     for (const auto& file : threadFiles)
         fs::remove(file);
@@ -353,8 +382,13 @@ void EventAction::MergeRecoilHitsOutputs()
     if (threadFiles.empty())
         return;
 
+    // See the matching field-count check in MergeThreadOutputs() --
+    // same rationale, this file's header has 14 columns.
+    constexpr int kExpectedFields = 14;
+
     std::ofstream merged(dir / "recoil_hits.csv");
     bool headerWritten = false;
+    int droppedLines = 0;
 
     for (const auto& file : threadFiles)
     {
@@ -372,6 +406,14 @@ void EventAction::MergeRecoilHitsOutputs()
                     continue;
 
                 headerWritten = true;
+                merged << line << "\n";
+                continue;
+            }
+
+            if (std::count(line.begin(), line.end(), ',') + 1 != kExpectedFields)
+            {
+                ++droppedLines;
+                continue;
             }
 
             merged << line << "\n";
@@ -379,6 +421,15 @@ void EventAction::MergeRecoilHitsOutputs()
     }
 
     merged.close();
+
+    if (droppedLines > 0)
+    {
+        G4cerr << "EventAction::MergeRecoilHitsOutputs() -- WARNING: dropped "
+               << droppedLines << " malformed line(s) while merging "
+               << "(wrong field count -- check for another PANDA run "
+               << "having written to " << dir.string()
+               << " concurrently)" << G4endl;
+    }
 
     for (const auto& file : threadFiles)
         fs::remove(file);
