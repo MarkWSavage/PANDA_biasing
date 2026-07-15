@@ -1,0 +1,42 @@
+# Deep-submicron geometry/physics robustness smoke test -- NOT a
+# validation benchmark (no real device/measurement targeted). Checks
+# that PANDA's geometry construction, the region-scoped production-cuts
+# feature (see src/DetectorConstruction.cc), and cross-section biasing
+# all still behave correctly at an 80nm-node-scale sensitive volume
+# (200/50/20 nm XY/sensitiveThickness/deadThickness -- an order of
+# magnitude below anything else this project has run, see
+# Macros/run_hitachi_*.mac and run_ceiling_*.mac for the smallest/
+# largest previously-tested scales). stepSize tightened to 2 nm (vs.
+# the usual default) to keep several steps across the thin stack.
+#
+# Confirmed clean at 10M events: no crashes, no geometry warnings,
+# biasing engaging as expected (~850x more recoil hits than an
+# unbiased run, consistent with the 1041x factor), recoil species/LET
+# breakdown dominated by Si spallation fragments and daughters
+# (Al/Mg/Na isotopes), max LET ~12 MeV*cm2/mg -- consistent with the
+# ~11-15 ceiling found in the Si-recoil LET investigation at um scale.
+# Results are NOT committed (Results/ is gitignored, events.csv alone
+# is ~485 MB) -- rerun this macro + PANDAEX_Analyze.py to regenerate.
+/random/setSeeds 12345 54321
+/sim/particle proton
+/sim/sensitiveXY 0.2 um
+/sim/deadXY 0.2 um
+/sim/sensitiveThickness 0.05 um
+/sim/deadThickness 0.02 um
+/sim/sensitiveMaterial Si
+/sim/deadMaterial SiO2
+/sim/biasCrossSectionFactor 1041
+/sim/secondaryNeutronBiasFactor 1041
+/sim/stepSize 0.002 um
+/sim/useCollectionModel true
+/sim/carrierLifetime 1.0 ns
+/sim/electricField 1000000 volt/m
+/run/initialize
+/run/reinitializeGeometry
+
+/sim/energy 50 MeV
+/sim/beamXY 0.2 um
+/sim/criticalCharge 150
+/sim/logRecoilHits true
+/sim/verbose false
+/run/beamOn 10000000
