@@ -12,6 +12,9 @@
 #include "G4UserLimits.hh"
 #include "G4RunManager.hh"
 #include "G4ParticleTable.hh"
+#include "G4Region.hh"
+#include "G4RegionStore.hh"
+#include "G4ProductionCuts.hh"
 #include "SEEBiasingOperator.hh"
 
 #include <algorithm>
@@ -356,6 +359,63 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
         0
     );
 
+    // Production cuts scaled to the sensitive+dead stack, not left at
+    // Geant4's stock ~0.7-1 mm default. That default is fine down to the
+    // 1-14 um devices this has actually been run at (a delta ray's real
+    // range is already smaller than the device), but becomes a real gap
+    // at deep-submicron scale (e.g. an 80 nm-node junction's ~20-100 nm
+    // depletion depth): every secondary's energy gets dumped locally via
+    // restricted stepping instead of being transported as an explicit
+    // track, silently losing whatever delta-ray/charge-sharing range
+    // structure is comparable to or larger than the sensitive volume
+    // itself.
+    //
+    // Applied via a dedicated G4Region covering just the sensitive+dead
+    // volumes (not the whole geometry) -- Geant4 only uses the finer cut
+    // for secondaries actually produced inside that region, so the
+    // (often much larger, auto-grown up to several mm -- see
+    // fSurroundingXY/Thickness) surrounding volume and world keep the
+    // default cut and the normal tracking cost. Scaling this cut globally
+    // instead would force fine-grained tracking through that entire
+    // surrounding volume too, which is exactly the "1 mm shell made runs
+    // impractically slow" problem noted below, but far worse.
+    //
+    // Cut length = smallest relevant dimension / 10 (a commonly-used
+    // rule of thumb for resolving secondary-particle structure within a
+    // region -- not an exact science), clamped to [1 nm, 0.7 mm]: the
+    // floor matches SteppingAction's LET boundary-artifact cutoff (going
+    // finer buys nothing -- Geant4's own lowest tracking energy threshold
+    // is reached well before 1 nm in Si anyway), the ceiling means this
+    // never coarsens relative to Geant4's stock default for large devices
+    // (e.g. the 50-1000 um geometries in Macros/run_ceiling_*.mac) --
+    // it only ever sharpens the resolution as the device shrinks.
+    G4double smallestDim =
+        std::min(
+            {fSensitiveXY, fSensitiveThickness, fDeadXY, fDeadThickness}
+        );
+
+    G4double cutLength = smallestDim / 10.0;
+    cutLength = std::clamp(cutLength, 1.0 * nm, 0.7 * mm);
+
+    // Every PANDA macro calls /run/initialize then /run/reinitializeGeometry
+    // (see any Macros/*.mac), so Construct() runs twice per invocation --
+    // once from initialize, once from the explicit reinit. Region names
+    // must be globally unique in G4RegionStore, so unconditionally `new`-ing
+    // a region here on the second call collides with the first call's
+    // still-registered region (a fatal region-store corruption, not just a
+    // harmless warning despite what the G4Exception text says). Reuse the
+    // existing region object if Construct() has already run once instead.
+    auto sensitiveRegion =
+        G4RegionStore::GetInstance()->GetRegion("SensitiveRegion", false);
+    if (!sensitiveRegion)
+        sensitiveRegion = new G4Region("SensitiveRegion");
+
+    sensitiveRegion->AddRootLogicalVolume(fSensitiveLogical);
+    sensitiveRegion->AddRootLogicalVolume(logicDead);
+
+    auto sensitiveCuts = new G4ProductionCuts();
+    sensitiveCuts->SetProductionCut(cutLength);
+    sensitiveRegion->SetProductionCuts(sensitiveCuts);
 
 
     return physWorld;
