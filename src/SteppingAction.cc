@@ -123,10 +123,20 @@ void SteppingAction::UserSteppingAction(const G4Step* step)
     // step length produces spuriously enormous LET -- seen in practice
     // as an Al recoil reporting LET ~680 MeV*cm2/mg from a 1.6 pm
     // "step" -- that reflects navigator noise, not the recoil's real
-    // energy loss. Below this cutoff the hit is excluded from the
-    // per-hit LET export entirely (see below); its edep is still tiny
-    // (sub-keV) and remains in the event's energy totals either way.
-    static const G4double kMinLETStepLength = 1.0 * nm;
+    // energy loss. A 1nm floor (the original fix here) only catches
+    // that literal near-zero-division case; a full recoil_hits.csv
+    // export (10M-event proton/Si-SiO2 run) showed the same inflation
+    // persists smoothly out to ~100nm, from ordinary short steps
+    // (Landau/Urban straggling gives a short step's instantaneous
+    // dE/dx much more sample-to-sample variance than a long one) --
+    // e.g. an O16 recoil reporting LET ~84 MeV*cm2/mg from a 1.1nm
+    // step, vs. this same run's max LET of ~14.3 once restricted to
+    // steps >=100nm, matching the independently-established ~14.4
+    // ceiling for this geometry. Below this cutoff the hit is excluded
+    // from the per-hit LET export entirely (see below); its edep is
+    // still tiny (sub-keV to low-keV) and remains in the event's
+    // energy totals either way.
+    static const G4double kMinLETStepLength = 100.0 * nm;
     G4bool validLETStep = (hit.stepLength >= kMinLETStepLength);
 
     if (validLETStep)
