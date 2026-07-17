@@ -23,6 +23,8 @@ Set `/sim/logRecoilHits true` (default `false`) to additionally write `Results/C
 
 Run `python3 PANDAEX_Analyze.py` to analyze it: a per-species summary table (count, weighted count, Z, A, max/mean LET, saved as `PANDAEX_recoil_species_summary.csv`) and a differential LET spectrum plot (`PANDAEX_LET_spectrum.png`, overall plus the top species by hit count). Falls back gracefully if `recoil_hits.csv` doesn't exist.
 
+See `Documentation/PANDA_VALIDATION_SUMMARY.md` for the full validation summary -- comparisons against Hitachi HM68512 open proton-SEU data, McNulty et al./CUPID, and CREME-MC/MRED, plus every geometry/physics robustness check run against PANDA itself.
+
 ## Known limitations
 
 - **CREME-MC comparison shoulder**: PANDA's cross-section curve sits ~1-2 orders of magnitude above CREME-MC's in the ~2-20 fC charge range (log-RMSE ~0.9 decades over the full curve), reproducible at both low and high statistics (i.e. not a sampling artifact). This is expected: PANDA (Geant4, QGSP_BIC_HP) and CREME-MC use different underlying nuclear reaction model families -- Geant4's cascade/pre-compound physics vs. CREME-MC's semi-empirical fragmentation cross-sections -- and published comparisons of Geant4 against CREME96 report exactly this kind of physics-list-dependent discrepancy (see [arXiv:0712.2149](https://arxiv.org/pdf/0712.2149)). Not considered fixable in PANDA's code; treat sub-decade-scale disagreement in this charge range as expected rather than a bug.
