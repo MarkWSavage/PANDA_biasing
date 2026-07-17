@@ -14,7 +14,9 @@ particle = None
 energy = None
 beamXY = None
 sensitiveXY = None
+sensitiveThickness = None
 deadThickness = None
+incidentAngle = None
 nParticles = None
 criticalCharge = None
 useCollectionModel = None
@@ -39,10 +41,20 @@ with open("run.mac", "r") as f:
             if m:
                 sensitiveXY = float(m.group(1))
 
+        elif "/sim/sensitiveThickness" in line:
+            m = re.search(r'/sim/sensitiveThickness\s+([\d\.]+)', line)
+            if m:
+                sensitiveThickness = float(m.group(1))
+
         elif "/sim/deadThickness" in line:
             m = re.search(r'/sim/deadThickness\s+([\d\.]+)', line)
             if m:
                 deadThickness = float(m.group(1))
+
+        elif "/sim/incidentAngle" in line:
+            m = re.search(r'/sim/incidentAngle\s+([\d\.]+)', line)
+            if m:
+                incidentAngle = float(m.group(1))
 
         elif "/sim/criticalCharge" in line:
             m = re.search(r'/sim/criticalCharge\s+([\d\.]+)', line)
@@ -65,7 +77,9 @@ print("Particle:", particle)
 print("Energy (MeV):", energy)
 print("Beam XY (um):", beamXY)
 print("Sensitive XY (um):", sensitiveXY)
+print("Sensitive thickness (um):", sensitiveThickness)
 print("Dead layer (um):", deadThickness)
+print("Incident angle (deg):", incidentAngle if incidentAngle is not None else 0.0)
 print("Particles:", nParticles)
 print("Critical charge (fC):", criticalCharge)
 print("Upset criterion uses:",
@@ -211,10 +225,25 @@ for key, meta in METRICS.items():
     cum_counts = np.cumsum(hist[::-1])[::-1]
     prob = cum_counts / countQ
 
+    # P(Q>=q) is monotonically non-increasing as the threshold rises, so
+    # its max is always prob[0] -- but a single stray near-zero charge
+    # value (e.g. a boundary-tolerance artifact, more likely to show up
+    # at deep-submicron device scale) can drag the bin range down many
+    # extra decades below where the real distribution starts, stretching
+    # a flat P=1 plateau across most of the plot. Find where the curve
+    # actually leaves that plateau and start the plotted (not the
+    # underlying data/CSV -- both still cover the full range) x-axis
+    # there instead of at the true bin minimum.
+    plateau_val = prob[0]
+    still_plateau = np.isclose(prob, plateau_val, rtol=1e-9, atol=0)
+    plot_xmin = None if still_plateau.all() else bin_centers[np.where(still_plateau)[0][-1]]
+
     plt.figure(figsize=(8, 6))
     plt.plot(bin_centers, prob)
     plt.xscale("log")
     plt.yscale("log")
+    if plot_xmin is not None:
+        plt.xlim(left=plot_xmin)
     plt.xlabel(f"{label} Threshold (fC)")
     plt.ylabel("P(Q ≥ q)")
     plt.title(f"PANDA Cumulative Probability ({label})")
@@ -232,6 +261,8 @@ for key, meta in METRICS.items():
     plt.plot(bin_centers, sigma)
     plt.xscale("log")
     plt.yscale("log")
+    if plot_xmin is not None:
+        plt.xlim(left=plot_xmin)
     plt.xlabel(f"{label} Threshold (fC)")
     plt.ylabel("Cross Section (cm²)")
     plt.title(f"PANDA Cumulative Cross Section ({label})")
