@@ -18,6 +18,7 @@
 #include "SEEBiasingOperator.hh"
 
 #include <algorithm>
+#include <cmath>
 #include <vector>
 
 DetectorConstruction::DetectorConstruction()
@@ -89,6 +90,21 @@ auto& thickCmd =
         "um",
         fSensitiveThickness);
 thickCmd.SetStates(G4State_PreInit, G4State_Idle);
+
+auto& angleCmd =
+    fMessenger->DeclarePropertyWithUnit(
+        "incidentAngle",
+        "deg",
+        fIncidentAngle,
+        "Angle of the primary beam from the sensitive volume's normal "
+        "(0 = normal incidence, default). Approximates a tilted beam by "
+        "dividing the sensitive volume's effective thickness by "
+        "cos(incidentAngle) -- the standard chord-length-elongation "
+        "model used for tilt-angle corrections in heavy-ion SEE testing "
+        "-- instead of actually rotating the beam or geometry. Valid "
+        "range [0, 90) deg. The lateral (XY) footprint is NOT adjusted "
+        "-- see Documentation/PANDA_MASTER_DESIGN.");
+angleCmd.SetStates(G4State_PreInit, G4State_Idle);
 
 auto& collectCmd =
     fMessenger->DeclareProperty(
@@ -202,6 +218,27 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
     auto sensitiveMaterial = ResolveMaterial(fSensitiveMaterialName);
     auto deadMaterial      = ResolveMaterial(fDeadMaterialName);
 
+    // Effective (tilt-adjusted) sensitive thickness -- see
+    // fEffectiveSensitiveThickness in the header for why this is a
+    // fresh recompute from fSensitiveThickness every call, not an
+    // in-place update. 0 deg (the default) gives cos(0)=1, exactly
+    // reproducing the untilted baseline for every macro that doesn't
+    // set /sim/incidentAngle.
+    if (fIncidentAngle < 0.0*deg || fIncidentAngle >= 90.0*deg)
+    {
+        G4Exception(
+            "DetectorConstruction::Construct()",
+            "InvalidIncidentAngle",
+            FatalException,
+            "/sim/incidentAngle must be in [0, 90) deg -- cos(theta) "
+            "must stay positive and finite for the thickness/cos(theta) "
+            "approximation to make sense."
+        );
+    }
+
+    fEffectiveSensitiveThickness =
+        fSensitiveThickness / std::cos(fIncidentAngle);
+
     // Surrounding volume matches the sensitive volume's material (bulk
     // substrate the junction is fabricated in). Grow it automatically
     // if the dead/sensitive stack itself is larger than the requested
@@ -210,7 +247,7 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
     // box, which Geant4 would reject as an invalid mother/daughter
     // overlap.
     G4double totalThickness =
-        fDeadThickness + fSensitiveThickness;
+        fDeadThickness + fEffectiveSensitiveThickness;
 
     G4double surroundingXY =
         std::max(fSurroundingXY, 1.2 * std::max(fSensitiveXY, fDeadXY));
@@ -313,7 +350,7 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
         G4ThreeVector(
             0,
             0,
-            -(fSensitiveThickness/2 + fDeadThickness/2)
+            -(fEffectiveSensitiveThickness/2 + fDeadThickness/2)
         ),
         logicDead,
         "DeadLayer",
@@ -328,7 +365,7 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
             "SensitiveVolume",
             fSensitiveXY/2,
             fSensitiveXY/2,
-            fSensitiveThickness/2
+            fEffectiveSensitiveThickness/2
         );
 
 
@@ -391,7 +428,7 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
     // it only ever sharpens the resolution as the device shrinks.
     G4double smallestDim =
         std::min(
-            {fSensitiveXY, fSensitiveThickness, fDeadXY, fDeadThickness}
+            {fSensitiveXY, fEffectiveSensitiveThickness, fDeadXY, fDeadThickness}
         );
 
     G4double cutLength = smallestDim / 10.0;

@@ -25,7 +25,14 @@ public:
 
     G4LogicalVolume* GetSensitiveLogical() const;
     G4LogicalVolume* GetDeadLogical() const { return fDeadLogical; }
-    G4double GetSensitiveThickness() const { return fSensitiveThickness; }
+
+    // Effective thickness (fSensitiveThickness/cos(fIncidentAngle)),
+    // recomputed by Construct() -- see fEffectiveSensitiveThickness.
+    // Everything downstream (PrimaryGeneratorAction's beam start Z,
+    // SteppingAction's drift-distance model) reads thickness only
+    // through this getter, so both stay consistent with the tilted
+    // geometry automatically.
+    G4double GetSensitiveThickness() const { return fEffectiveSensitiveThickness; }
     G4double GetDeadThickness() const { return fDeadThickness; }
     G4double GetSensitiveXY() const { return fSensitiveXY; }
     G4double GetDeadXY() const { return fDeadXY; }
@@ -73,6 +80,33 @@ private:
     G4double fSensitiveThickness = 10*um;
     G4double fDeadThickness = 5*um;
     G4String fParticleName = "proton";
+
+    // Angle of the primary beam from the sensitive volume's normal, set
+    // via /sim/incidentAngle (default 0 = normal incidence, preserving
+    // existing behavior for every macro that doesn't set it). Rather
+    // than actually rotating the beam or geometry -- which would also
+    // need to reshape the dead layer, surrounding volume, and
+    // secondary-neutron-biasing region to stay consistent, a much
+    // larger lift -- this approximates the tilt by lengthening the
+    // sensitive volume's effective thickness by 1/cos(theta): the same
+    // chord-length-elongation model used for tilt-angle corrections in
+    // heavy-ion SEE testing (LET_eff = LET(0 deg)/cos(theta)). Only
+    // valid for beam-footprint-covers-device test conditions (see
+    // Documentation/PANDA_MASTER_DESIGN) -- the lateral (XY) footprint
+    // is deliberately left unchanged.
+    G4double fIncidentAngle = 0*deg;
+
+    // Recomputed by Construct() every call as
+    // fSensitiveThickness/cos(fIncidentAngle) -- NOT written back into
+    // fSensitiveThickness itself, since Construct() runs twice per
+    // invocation (every macro calls /run/initialize then
+    // /run/reinitializeGeometry) and overwriting the raw configured
+    // value would double-apply the 1/cos(theta) scaling on the second
+    // call. This is the value actually used to build the sensitive
+    // volume's G4Box and everything derived from it (dead-layer
+    // placement, surrounding-volume auto-grow sizing, production-cut
+    // length), and the value GetSensitiveThickness() returns.
+    G4double fEffectiveSensitiveThickness = 10*um;
 
     // Bulk material surrounding the dead+sensitive stack, matching the
     // sensitive volume's material (e.g. bulk Si around a Si junction).

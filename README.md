@@ -23,6 +23,10 @@ Set `/sim/logRecoilHits true` (default `false`) to additionally write `Results/C
 
 Run `python3 PANDAEX_Analyze.py` to analyze it: a per-species summary table (count, weighted count, Z, A, max/mean LET, saved as `PANDAEX_recoil_species_summary.csv`) and a differential LET spectrum plot (`PANDAEX_LET_spectrum.png`, overall plus the top species by hit count). Falls back gracefully if `recoil_hits.csv` doesn't exist.
 
+## Angle of incidence (approximate)
+
+Set `/sim/incidentAngle` (degrees, default `0`) to approximate a beam tilted off the sensitive volume's normal. Rather than rotating the beam or geometry (which would also need to reshape the dead layer, surrounding volume, and secondary-neutron-biasing region), this divides the sensitive volume's effective thickness by `cos(incidentAngle)` -- the same chord-length-elongation model used for tilt-angle corrections in heavy-ion SEE testing (`LET_eff = LET(0 deg)/cos(theta)`), valid for a broad-uniform-beam test condition (beam footprint much larger than the device). The lateral (XY) footprint is intentionally left unchanged -- no physically-grounded correction for it was found; see `Documentation/PANDA_MASTER_DESIGN` for why. Valid range `[0, 90)` deg; anything outside that raises a fatal exception rather than silently producing an infinite or negative thickness.
+
 See `Documentation/PANDA_VALIDATION_SUMMARY.md` for the full validation summary -- comparisons against Hitachi HM68512 open proton-SEU data, McNulty et al./CUPID, and CREME-MC/MRED, plus every geometry/physics robustness check run against PANDA itself.
 
 ## Known limitations
