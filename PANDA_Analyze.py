@@ -206,22 +206,9 @@ for key, meta in METRICS.items():
     hist = s["hist"]
     countQ = s["count"]
 
-    # Differential spectrum
-    plt.figure(figsize=(8, 6))
-    plt.step(bin_centers, hist, where='mid')
-    plt.xscale("log")
-    plt.yscale("log")
-    plt.xlabel(f"{label} (fC)")
-    plt.ylabel("Counts")
-    plt.title(f"PANDA Differential Charge Spectrum ({label})")
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig(
-        os.path.join(RESULTS_DIR, f"differential_charge_spectrum_{suffix}.png")
-    )
-    plt.close()
-
-    # Cumulative probability
+    # Cumulative probability (computed here, ahead of the differential
+    # spectrum plot below, so its plateau-derived x-axis cutoff -- see
+    # plot_xmin below -- can be reused for that plot too).
     cum_counts = np.cumsum(hist[::-1])[::-1]
     prob = cum_counts / countQ
 
@@ -233,10 +220,29 @@ for key, meta in METRICS.items():
     # a flat P=1 plateau across most of the plot. Find where the curve
     # actually leaves that plateau and start the plotted (not the
     # underlying data/CSV -- both still cover the full range) x-axis
-    # there instead of at the true bin minimum.
+    # there instead of at the true bin minimum. Reused below for the
+    # differential spectrum too, since the same stray values also
+    # stretch that plot's x-axis out to the same uninformative range.
     plateau_val = prob[0]
     still_plateau = np.isclose(prob, plateau_val, rtol=1e-9, atol=0)
     plot_xmin = None if still_plateau.all() else bin_centers[np.where(still_plateau)[0][-1]]
+
+    # Differential spectrum
+    plt.figure(figsize=(8, 6))
+    plt.step(bin_centers, hist, where='mid')
+    plt.xscale("log")
+    plt.yscale("log")
+    if plot_xmin is not None:
+        plt.xlim(left=plot_xmin)
+    plt.xlabel(f"{label} (fC)")
+    plt.ylabel("Counts")
+    plt.title(f"PANDA Differential Charge Spectrum ({label})")
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(
+        os.path.join(RESULTS_DIR, f"differential_charge_spectrum_{suffix}.png")
+    )
+    plt.close()
 
     plt.figure(figsize=(8, 6))
     plt.plot(bin_centers, prob)
