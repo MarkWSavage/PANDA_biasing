@@ -397,6 +397,23 @@ class PandaGUI(QWidget):
                 f.write("/vis/viewer/set/viewpointVector 1 0 0.3\n")
                 f.write("/vis/drawVolume\n")
                 f.write("/vis/viewer/set/style wireframe\n")
+
+                # Without these, MT Geant4 still stores every event's
+                # trajectory for the vis sub-thread (even though nothing
+                # here ever asked for trajectories), and OGLSX draws
+                # each one far slower than the run itself produces them
+                # (~5-6x, measured). The vis queue then backs up past
+                # its default cap (100 events) and beamOn blocks waiting
+                # on the vis thread -- for a large event count that
+                # stalls the whole run behind what looks like a static
+                # geometry view, i.e. "visualization but it never runs".
+                # add/trajectories + accumulate makes the viewer show a
+                # sample of real tracks instead of just the wireframe;
+                # actionOnEventQueueFull discard is what actually keeps
+                # beamOn running at full speed once that sample is full.
+                f.write("/vis/scene/add/trajectories smooth\n")
+                f.write("/vis/scene/endOfEventAction accumulate 100\n")
+                f.write("/vis/multithreading/actionOnEventQueueFull discard\n")
                 f.write("/vis/viewer/flush\n\n")
 
             f.write(f"/run/beamOn {self.fields['Events'].text()}\n")
