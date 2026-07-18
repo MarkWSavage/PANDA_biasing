@@ -20,4 +20,13 @@
 /sim/verbose false
 /sim/logRecoilHits true
 
+/vis/open OGLSX
+/vis/viewer/set/viewpointVector 1 0 0.3
+/vis/drawVolume
+/vis/viewer/set/style wireframe
+/vis/scene/add/trajectories smooth
+/vis/scene/endOfEventAction accumulate 100
+/vis/multithreading/actionOnEventQueueFull discard
+/vis/viewer/flush
+
 /run/beamOn 10000000
