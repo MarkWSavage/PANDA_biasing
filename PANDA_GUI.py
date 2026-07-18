@@ -226,7 +226,7 @@ class PandaGUI(QWidget):
         self.analyze_button.clicked.connect(self.run_analysis)
         control_layout.addWidget(self.analyze_button, 2, 1)
 
-        self.plot_spec_button = QPushButton("▥ Plot Spectrum")
+        self.plot_spec_button = QPushButton("▙ Plot Spectrum")
         self.style_button(self.plot_spec_button, "#fff0c9", "#d9a400")
         self.plot_spec_button.clicked.connect(
             lambda: self.open_file(
