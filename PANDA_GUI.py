@@ -208,7 +208,7 @@ class PandaGUI(QWidget):
         control_layout.addWidget(plot_metric_label, 0, 0, 1, 2)
 
         self.metric_dropdown = QComboBox()
-        self.metric_dropdown.addItems(["Collected", "Deposited"])
+        self.metric_dropdown.addItems(["Deposited", "Collected"])
         self.metric_dropdown.setFixedHeight(34)
         self.metric_dropdown.setToolTip(
             "Both charge metrics are always scored and analyzed.\n"
