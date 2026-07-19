@@ -1,6 +1,8 @@
 #include "SEEBiasingOperator.hh"
 
 #include "G4BiasingProcessInterface.hh"
+#include "G4IonTable.hh"
+#include "G4ParticleTable.hh"
 #include "G4ProcessManager.hh"
 #include "G4ProcessType.hh"
 #include "G4HadronicProcessType.hh"
@@ -158,6 +160,42 @@ void SEEBiasingOperator::StartRun()
     // whether a given wrapped process is actually the hadronic
     // inelastic process we want to bias -- all others are left
     // unbiased (nullptr returned for them).
+    // Resolve any heavy-ion entry deferred by
+    // DetectorConstruction::ConstructSDandField() (pendingIonZ != 0,
+    // particle == nullptr): G4IonTable::GetIon() requires GenericIon's
+    // process manager already built, which wasn't true yet at
+    // ConstructSDandField() time but is guaranteed true here -- StartRun()
+    // only fires after G4RunManagerKernel::RunInitialization() has
+    // already built physics tables (see the ConstructSDandField() comment
+    // for the exact state-transition trace). The new ion's process
+    // manager is a clone of GenericIon's, which PANDA.cc already wrapped
+    // for biasing under the name "GenericIon" -- so no per-isotope
+    // PhysicsBias() call is needed, this alone is enough to make the
+    // clone's inelastic process visible below.
+    for (auto& sb : fSpeciesBiases)
+    {
+        if (!sb.particle && sb.pendingIonZ != 0)
+        {
+            sb.particle =
+                G4ParticleTable::GetParticleTable()
+                    ->GetIonTable()
+                    ->GetIon(sb.pendingIonZ, sb.pendingIonA, 0.);
+
+            if (!sb.particle)
+            {
+                G4Exception(
+                    "SEEBiasingOperator::StartRun()",
+                    "InvalidIon",
+                    FatalException,
+                    "G4IonTable::GetIon() failed for a pending heavy-ion "
+                    "species -- GenericIon should already be ready by "
+                    "StartRun(); see the comment above for the expected "
+                    "state-transition ordering this relies on."
+                );
+            }
+        }
+    }
+
     for (const auto& sb : fSpeciesBiases)
     {
         const G4ProcessManager* processManager =

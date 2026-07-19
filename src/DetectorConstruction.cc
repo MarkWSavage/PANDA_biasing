@@ -12,6 +12,7 @@
 #include "G4UserLimits.hh"
 #include "G4RunManager.hh"
 #include "G4ParticleTable.hh"
+#include "G4IonTable.hh"
 #include "G4Region.hh"
 #include "G4RegionStore.hh"
 #include "G4ProductionCuts.hh"
@@ -55,8 +56,9 @@ auto& particleCmd =
         "particle",
         fParticleName,
         "Primary particle name (e.g. proton, neutron, alpha, deuteron, "
-        "triton, He3, GenericIon). Also selects which species' hadronic "
-        "inelastic process the SEEBiasingOperator biases -- see "
+        "triton, He3, GenericIon, or one of the heavy-ion primaries: "
+        "C12, F19, Cl35, Ni58, I127, Au197). Also selects which species' "
+        "hadronic inelastic process the SEEBiasingOperator biases -- see "
         "ConstructSDandField() and PANDA.cc.");
 particleCmd.SetStates(G4State_PreInit, G4State_Idle);
 
@@ -685,18 +687,67 @@ void DetectorConstruction::ConstructSDandField()
     // construction time -- if it hasn't (e.g. a particle name not in
     // that list), SEEBiasingOperator::StartRun() prints an explicit
     // WARNING and biasing is silently inert for this run.
-    G4ParticleDefinition* primaryDef =
-        G4ParticleTable::GetParticleTable()->FindParticle(fParticleName);
+    // Heavy-ion primaries: unlike proton/neutron/alpha/deuteron/triton/
+    // He3 (built into Geant4's particle table from startup), a specific
+    // heavy ion doesn't exist as a G4ParticleDefinition until explicitly
+    // created via G4IonTable::GetIon(Z,A,...) -- and that call requires
+    // GenericIon's own process manager to already be built (it clones
+    // that onto the new ion). ConstructSDandField() runs too early for
+    // this: confirmed empirically (G4IonTable::CreateIon() logs PART105
+    // "GenericIon is not ready" if attempted here) -- geometry/SD
+    // construction (this method) happens before physics construction in
+    // Geant4's own init sequence, for master and worker threads alike.
+    // The earliest point that's guaranteed safe is
+    // SEEBiasingOperator::StartRun(), triggered on the Idle->GeomClosed
+    // state transition, which happens only after
+    // G4RunManagerKernel::RunInitialization() has already built physics
+    // tables (see its source -- physicsInitialized is asserted true on
+    // entry, and BuildPhysicsTables() runs before the state transition
+    // that fires StartRun()). So for a known heavy-ion name, resolution
+    // is deferred: primaryDef stays null and (Z,A) is passed through
+    // instead, resolved later by StartRun() -- see SEEBiasingOperator.cc.
+    // By the time PrimaryGeneratorAction::GeneratePrimaries() runs for
+    // the first event (necessarily after StartRun()), the ion already
+    // exists, so its own FindParticle(fParticleName) needs no changes.
+    struct IonSpec { const char* name; G4int z; G4int a; };
+    static const IonSpec kHeavyIons[] = {
+        {"C12",   6,  12},
+        {"F19",   9,  19},
+        {"Cl35",  17, 35},
+        {"Ni58",  28, 58},
+        {"I127",  53, 127},
+        {"Au197", 79, 197},
+    };
 
-    if (!primaryDef)
+    G4ParticleDefinition* primaryDef = nullptr;
+    G4int pendingIonZ = 0;
+    G4int pendingIonA = 0;
+
+    for (const auto& ion : kHeavyIons)
     {
-        G4Exception(
-            "DetectorConstruction::ConstructSDandField()",
-            "InvalidParticle",
-            FatalException,
-            ("Unknown /sim/particle name: '" + fParticleName +
-             "' -- not found in G4ParticleTable.").c_str()
-        );
+        if (fParticleName == ion.name)
+        {
+            pendingIonZ = ion.z;
+            pendingIonA = ion.a;
+            break;
+        }
+    }
+
+    if (pendingIonZ == 0)
+    {
+        primaryDef =
+            G4ParticleTable::GetParticleTable()->FindParticle(fParticleName);
+
+        if (!primaryDef)
+        {
+            G4Exception(
+                "DetectorConstruction::ConstructSDandField()",
+                "InvalidParticle",
+                FatalException,
+                ("Unknown /sim/particle name: '" + fParticleName +
+                 "' -- not found in G4ParticleTable.").c_str()
+            );
+        }
     }
 
     // Geant4 allows only one G4VBiasingOperator attached per logical
@@ -708,7 +759,9 @@ void DetectorConstruction::ConstructSDandField()
     // already used by another operator" and leaving secondary-neutron
     // biasing completely inert). See SEEBiasingOperator.hh.
     std::vector<SEEBiasingOperator::SpeciesBias> speciesBiases;
-    speciesBiases.push_back({primaryDef, fBiasCrossSectionFactor, false});
+    speciesBiases.push_back(
+        {primaryDef, fBiasCrossSectionFactor, false, pendingIonZ, pendingIonA}
+    );
 
     // Secondary neutrons (e.g. produced by a proton primary's own
     // reactions) are NOT biased by the primary entry above -- it only

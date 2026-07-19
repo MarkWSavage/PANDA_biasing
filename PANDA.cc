@@ -44,6 +44,17 @@ int main(int argc, char** argv)
     auto* physicsList = new QGSP_BIC_HP();
         //new QGSP_INCLXX_HP()
 
+    // Note: heavy-ion primaries (e.g. C12, Au197) are NOT pre-created
+    // here. G4IonTable::GetIon() needs GenericIon's own process manager
+    // already built (it clones that onto the new ion), which physicsList
+    // hasn't done yet at this point in main() -- ConstructParticle()/
+    // ConstructProcess() only run later, when /run/initialize actually
+    // triggers physics construction. See
+    // SEEBiasingOperator::StartRun() for where ion creation actually
+    // happens instead (runs once per worker thread, confirmed to be the
+    // earliest point physics is guaranteed ready -- see the comment in
+    // DetectorConstruction::ConstructSDandField() for the full trace).
+
     // Wrap physics for biasing. Following the official Geant4 biasing
     // examples (GB01/GB07): explicitly name the ONE process to wrap per
     // particle -- its hadronic inelastic process -- rather than

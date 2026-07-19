@@ -79,6 +79,18 @@ public:
         const G4ParticleDefinition* particle;
         G4double crossSectionFactor;
         G4bool isSecondaryRole;
+
+        // Set instead of `particle` for a heavy-ion primary whose
+        // G4ParticleDefinition can't exist yet at ConstructSDandField()
+        // time (see DetectorConstruction::ConstructSDandField() for
+        // why). Zero means "particle is already resolved" -- every
+        // built-in species (proton, neutron, alpha, ...) leaves these at
+        // the default and sets `particle` directly as before.
+        // StartRun() resolves any pending entry via G4IonTable::GetIon()
+        // before first use, since by then physics construction (which
+        // G4IonTable requires) is guaranteed complete.
+        G4int pendingIonZ = 0;
+        G4int pendingIonA = 0;
     };
 
     SEEBiasingOperator(const std::vector<SpeciesBias>& speciesBiases,

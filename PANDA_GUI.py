@@ -83,14 +83,22 @@ class PandaGUI(QWidget):
             "deuteron",
             "triton",
             "He3",
-            "e-"
+            "e-",
+            "C12",
+            "F19",
+            "Cl35",
+            "Ni58",
+            "I127",
+            "Au197",
         ])
         self.particle_dropdown.setToolTip(
             "Biasing (Bias Cross Section Factor below) is validated for "
-            "proton, neutron, alpha, deuteron, triton, and He3 -- see "
-            "PANDA.cc for the exact wrapped process per species. e- has "
-            "no biasing wired up (runs unbiased regardless of the factor "
-            "field)."
+            "proton, neutron, alpha, deuteron, triton, He3, and the "
+            "C12/F19/Cl35/Ni58/I127/Au197 heavy-ion primaries (common SEE "
+            "test cocktail ions -- ground-state, most-abundant-isotope "
+            "per element) -- see PANDA.cc for the exact wrapped process "
+            "per species. e- has no biasing wired up (runs unbiased "
+            "regardless of the factor field)."
         )
         self.particle_dropdown.setFixedWidth(220)
         self.particle_dropdown.setFixedHeight(34)

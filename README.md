@@ -8,6 +8,10 @@ The core physical quantity computed is **collected charge** per event; upset pro
 
 Compared against CREME-MC (see `compare_creme_panda.py`) and against McNulty et al.'s published proton-induced experimental/CUPID data (see `compare_mcnulty_panda.py`). Includes optional cross-section biasing (`SEEBiasingOperator`) to efficiently sample the rare nuclear-recoil tail, with correct raw-charge/event-weight separation so biased and unbiased runs produce statistically consistent spectra. The dead+sensitive stack sits inside a configurable bulk "surrounding volume" (matching the sensitive material, `/sim/surroundingXY`/`/sim/surroundingThickness`), with optional biasing of secondary neutrons produced there too (`/sim/secondaryNeutronBiasFactor`), so nearby nuclear reactions can contribute recoils into the sensitive volume.
 
+## Primary particles
+
+Set via `/sim/particle` in a macro, or the Particle dropdown in `PANDA_GUI.py`: `proton`, `neutron`, `alpha`, `deuteron`, `triton`, `He3`, `e-`, or one of six heavy-ion primaries -- `C12`, `F19`, `Cl35`, `Ni58`, `I127`, `Au197` (ground-state, most-abundant-stable-isotope-per-element, matching common heavy-ion SEE test cocktails). Cross-section biasing (`/sim/biasCrossSectionFactor`) is validated for every species except `e-` (see `PANDA.cc`'s wrapped-process list). Unlike SRIM -- which computes a bare ion's stopping power/range but has no device or charge-collection model -- PANDA reports cross-section-vs-LET through its own geometry, charge-collection-efficiency, and angle-of-incidence models for these ions directly, covering the direct-ionization-dominated regime of SEE testing alongside its existing proton/neutron nuclear-recoil focus. See `Documentation/PANDA_MASTER_DESIGN`'s Cross-section biasing exception (Section 5) for the ion-creation ordering constraint this needed and how it was resolved.
+
 ## Materials
 
 The sensitive volume and dead layer/electrode each have an independently selectable material, set via `/sim/sensitiveMaterial` and `/sim/deadMaterial` in a macro, or the matching dropdowns in `PANDA_GUI.py` (next to the Sensitive/Dead Thickness fields):
