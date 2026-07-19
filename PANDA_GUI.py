@@ -443,14 +443,27 @@ class PandaGUI(QWidget):
                     f"{z_center_um - half_z_um} {z_center_um + half_z_um} um\n"
                 )
 
-                # Side-on viewpoint (mostly along +X, slightly elevated
-                # in Z): the dead layer and sensitive volume share the
-                # same XY footprint and are stacked along Z, so a
-                # face-on view down Z (the default) shows only the
-                # sensitive volume's front face -- the dead layer is
-                # directly behind it, fully occluded. This angle shows
-                # both layers as a visible cross-section stack instead.
-                f.write("/vis/viewer/set/viewpointVector 1 0 0.3\n")
+                # Side-on viewpoint, exactly along +X (no Z tilt): the
+                # dead layer and sensitive volume share the same XY
+                # footprint and are stacked along Z, so a face-on view
+                # down Z (the default) would show only the sensitive
+                # volume's front face -- the dead layer directly behind
+                # it, fully occluded. Viewing along X instead (perpendicular
+                # to the Z stacking axis) already shows both layers
+                # side-by-side with no occlusion, so no Z tilt is needed
+                # for that -- and a previous version of this command used
+                # viewpointVector "1 0 0.3" (a slight Z elevation), which
+                # turned out to actively HURT: that tilt makes the
+                # projected view direction depend on the box's own XY-to-Z
+                # aspect ratio, so the sensitive:dead thickness ratio
+                # visibly distorted (red growing relative to blue) as
+                # sensitiveXY grew, confirmed empirically across
+                # sensitiveXY = 10/100/1000 um screenshots (2026-07-19).
+                # Exactly "1 0 0" has no such skew -- verified the ratio
+                # stays correct (~1:10 for a 1um/10um sensitive/dead
+                # thickness) across that same sensitiveXY range, including
+                # a zoomed-in check of the most extreme (1000 um) case.
+                f.write("/vis/viewer/set/viewpointVector 1 0 0\n")
                 f.write("/vis/drawVolume\n")
                 f.write("/vis/viewer/set/style wireframe\n")
 
