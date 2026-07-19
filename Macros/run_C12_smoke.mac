@@ -1,0 +1,33 @@
+# Heavy-ion primary smoke test -- NOT a validation benchmark (no real
+# device/measurement targeted). Confirms carbon-12 works end-to-end as
+# a /sim/particle selection: dynamic ion creation (see
+# SEEBiasingOperator::StartRun() -- Geant4 only allows this once
+# GenericIon's process manager is built, which ConstructSDandField()
+# runs too early for), the ionInelastic process getting wrapped for
+# biasing via PANDA.cc's existing PhysicsBias("GenericIon", ...), and a
+# sane events.csv (Recoil_keV carries the primary's own direct-
+# ionization deposit for a non-proton/e- primary -- see the Scoping
+# note in Documentation/PANDA_MASTER_DESIGN after Section 4's table).
+# 15 MeV/amu matches typical heavy-ion SEE test facility energies.
+#
+# Confirmed clean: no exceptions, "ionInelastic" reported as the
+# wrapped process in StartRun()'s own diagnostic output, biasing
+# actually engaging (nonzero confirmed interactions at this factor).
+/random/setSeeds 11233 11244
+/sim/particle C12
+/sim/sensitiveXY 10 um
+/sim/deadXY 10 um
+/sim/sensitiveThickness 8 um
+/sim/deadThickness 5 um
+/sim/useCollectionModel true
+/sim/biasCrossSectionFactor 1000
+/sim/carrierLifetime 1.0 ns
+/sim/electricField 1000000 volt/m
+/run/initialize
+/run/reinitializeGeometry
+
+/sim/energy 180 MeV
+/sim/beamXY 10 um
+/sim/criticalCharge 150
+/sim/verbose false
+/run/beamOn 10000

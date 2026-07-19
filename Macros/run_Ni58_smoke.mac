@@ -1,0 +1,22 @@
+# Heavy-ion primary smoke test -- see run_C12_smoke.mac for the full
+# rationale (NOT a validation benchmark; confirms dynamic ion creation,
+# biasing wrap, and sane events.csv for a /sim/particle heavy ion).
+# 15 MeV/amu matches typical heavy-ion SEE test facility energies.
+/random/setSeeds 58833 58844
+/sim/particle Ni58
+/sim/sensitiveXY 10 um
+/sim/deadXY 10 um
+/sim/sensitiveThickness 8 um
+/sim/deadThickness 5 um
+/sim/useCollectionModel true
+/sim/biasCrossSectionFactor 1000
+/sim/carrierLifetime 1.0 ns
+/sim/electricField 1000000 volt/m
+/run/initialize
+/run/reinitializeGeometry
+
+/sim/energy 870 MeV
+/sim/beamXY 10 um
+/sim/criticalCharge 150
+/sim/verbose false
+/run/beamOn 10000
