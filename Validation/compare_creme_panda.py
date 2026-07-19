@@ -202,7 +202,7 @@ axs[0].loglog(
     markersize=4
 )
 
-axs[0].set_xlabel("Collected Charge (fC)")
+axs[0].set_xlabel("Deposited Charge (fC)")
 axs[0].set_ylabel("Cross Section")
 axs[0].set_title("Log-Log Comparison")
 axs[0].grid(True, which="both")
@@ -222,7 +222,7 @@ axs[1].semilogy(
     markersize=4
 )
 
-axs[1].set_xlabel("Collected Charge (fC)")
+axs[1].set_xlabel("Deposited Charge (fC)")
 axs[1].set_ylabel("Cross Section")
 axs[1].set_title("Lin-Log Comparison")
 axs[1].grid(True, which="both")

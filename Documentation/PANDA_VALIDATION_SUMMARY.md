@@ -1,6 +1,6 @@
 # PANDA Validation Summary
 
-**Status:** Core development and validation considered complete as of 2026-07-17.
+**Status:** Core development and validation considered complete as of 2026-07-17. CREME-MC comparison corrected 2026-07-19 (see 1.3).
 
 **Scope:** This document summarizes the validation and robustness testing performed against PANDA's three core responsibilities -- geometry, particle generation/transport, and energy/charge scoring -- and records the final, accepted status of every comparison against external data or tools. See `Documentation/PANDA_MASTER_DESIGN` for architecture and philosophy; this document is the validation-specific companion.
 
@@ -32,12 +32,12 @@ With a geometrically plausible (not device-specified -- the paper doesn't report
 
 ### 1.3 CREME-MC / MRED
 
-- PANDA's cross-section curve sits roughly 1-2 orders of magnitude above CREME-MC's in the ~2-20 fC range (log-RMSE ~0.9 decades), reproducible at both 1M and 10M primaries (not a sampling artifact), present before and after cross-section biasing was added (not a biasing regression).
-- The practical symptom of this discrepancy is an intermediate-charge/LET "hump" in PANDA's spectrum that CREME-MC does not show.
-- **Root cause: different nuclear reaction model families.** PANDA uses Geant4's QGSP_BIC_HP cascade/pre-compound physics; CREME-MC uses semi-empirical nuclear fragmentation cross-sections. Published Geant4-vs-CREME96 comparisons document this same class of physics-list-dependent discrepancy (arXiv:0712.2149).
-- Explicitly investigated whether to chase MRED's own physics list instead -- rejected: MRED is also Geant4-based, and Vanderbilt's own publications show real spread between its Bertini/Binary/INCL++ options, so matching one specific (possibly imperfect) configuration isn't a more meaningful target than the open Hitachi data above.
+- **Correction (2026-07-19): the original ~0.9-decade / "1-2 orders of magnitude" gap reported below was a methodology bug in `compare_creme_panda.py`, not a physics discrepancy.** The script was comparing CREME-MC's cross section against PANDA's **collected**-charge curve (`cumulative_cross_section_collected.csv`), which applies PANDA's drift/trapping collection-efficiency model (`Qeff = T*Qgen`, T<1, in `SteppingAction.cc`). CREME-MC (like CUPID) assumes the RPP model's ideal 100%-charge-collection convention, which has no equivalent of that efficiency factor -- so the two curves were never comparable quantities. Fixed to read `cumulative_cross_section_deposited.csv` instead (PANDA's 100%-collection-equivalent output).
+- **Corrected result: log-RMSE = 0.292 decades over all 50/50 CREME points**, now fully inside PANDA's simulated charge range (the previous comparison excluded 4 tail points as out-of-range, since the collected-charge curve tops out lower than deposited). The two curves visually overlap almost entirely across the full range, including through the ~3-10 fC region -- **the "intermediate-charge hump" previously attributed to differing nuclear reaction model families is not visible in the corrected comparison.** CREME-MC shows essentially the same knee/shoulder structure PANDA does at that point.
+- The prior root-cause narrative (QGSP_BIC_HP vs. CREME-MC's semi-empirical fragmentation cross-sections producing a physics-list-dependent hump) is **not supported once the comparison is done correctly** -- it was very likely an artifact of comparing a collection-degraded curve against an ideal-collection reference, not evidence of a genuine cascade-model discrepancy. The Geant4-vs-CREME96 literature comparison (arXiv:0712.2149) may still be relevant to *other* discrepancies, but is no longer needed to explain this one.
+- MRED-vs-CREME-MC's own internal physics-list spread (Bertini/Binary/INCL++) is unaffected by this correction and remains a separate, valid reason not to chase an exact match to one specific MRED configuration.
 
-**Verdict: not fixable within PANDA's code without access to CREME-MC's proprietary physics libraries; accepted as expected, physics-list-dependent disagreement, not a defect.**
+**Verdict (revised): good agreement (log-RMSE ~0.29 decades, full-range coverage) once compared against the correct 100%-collection-equivalent PANDA quantity. No remaining unexplained disagreement with CREME-MC requiring a "structural, not fixable" hedge.**
 
 ---
 
@@ -62,9 +62,10 @@ These did not compare against external data -- they stress-tested PANDA's own ge
 PANDA's three core responsibilities -- geometry, particle generation/transport, and energy/charge scoring -- have been validated for correctness and stress-tested for robustness:
 
 - **Against real, open experimental data** (Hitachi HM68512, McNulty et al. 1989): agreement within a factor of ~2 (Hitachi) and a partially-closed, understood-cause residual gap (McNulty), respectively.
-- **Against other simulation tools** (CREME-MC/MRED, CUPID): remaining disagreement is attributed to differences in nuclear reaction model families (CREME-MC/MRED) and to CUPID's own structural limitations (liquid-drop evaporation model, no direct-ionization modeling), not to defects in PANDA.
+- **Against other simulation tools**: CREME-MC agreement is good (log-RMSE ~0.29 decades, full-range coverage) once compared against PANDA's correct 100%-collection-equivalent (deposited-charge) output -- see 1.3 correction. CUPID's remaining disagreement is attributed to its own structural limitations (liquid-drop evaporation model, no direct-ionization modeling), not to defects in PANDA.
 - **Across device scale**, from mid-2000s bulk-junction geometries down to 80nm-node deep-submicron devices: geometry, biasing, production cuts, and recoil/LET export all confirmed functioning correctly, with one real fidelity bug (missing scaled production cuts) found and fixed along the way.
 - **Two plausible-sounding hypotheses tested and rejected** (gold-lid LET-ceiling increase, ~80 um shell ceiling) -- both are recorded as closed, negative results rather than open concerns.
 - **One genuine, non-obvious physical effect confirmed**: heavy-metal (W/Au/Pb/Ta) dead-layer/via-plug materials produce real fission-fragment recoils well above silicon's own LET ceiling, with severity that does not scale monotonically with atomic number.
+- **One validation-methodology bug found and fixed** (2026-07-19): the CREME-MC comparison script was using PANDA's collected-charge (not deposited-charge) cross section, comparing against the wrong physical quantity for an RPP-model reference; correcting it resolved what had been documented as an unexplained intermediate-charge "hump."
 
-Remaining known gaps (CREME-MC intermediate-charge "hump," McNulty's residual high-energy under-prediction) are considered structural to the comparison, not fixable within PANDA's own code, and are not open action items.
+Remaining known gap: McNulty's residual high-energy under-prediction, considered structural to the comparison (open, understood-cause but not fully closed), not an open action item. CUPID's absent low-energy end is expected by construction (see 1.2, 1.3).
