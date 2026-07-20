@@ -1,0 +1,19 @@
+/random/setSeeds 19755 19766
+/sim/particle Au197
+/sim/sensitiveXY 10 um
+/sim/deadXY 10 um
+/sim/sensitiveThickness 8 um
+/sim/deadThickness 5 um
+/sim/useCollectionModel true
+/sim/biasCrossSectionFactor 1041
+/sim/carrierLifetime 1.0 ns
+/sim/electricField 1000000 volt/m
+/run/initialize
+/run/reinitializeGeometry
+
+/sim/energy 2955 MeV
+/sim/beamXY 10 um
+/sim/criticalCharge 150
+/sim/logRecoilHits true
+/sim/verbose false
+/run/beamOn 5000
