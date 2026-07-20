@@ -18,6 +18,7 @@ With a geometrically plausible (not device-specified -- the paper doesn't report
 - Reproduces the measured static cross section within **~2x**, and reproduces the real device's flat 22-63 MeV energy dependence (2-3x max/min variation).
 - Undersized (4 um^3) and oversized (125 um^3) geometries both break the fit -- undershooting badly or requiring a much higher Qcrit that then destroys the flat energy dependence -- so the 20-27 um^3 match is a real constraint, not a free parameter absorbing everything.
 - Re-verified after the region-scoped production-cuts change (2026-07-15): shift is small at the Qcrit=50-100fC range this comparison actually operates in; conclusion unchanged.
+- Re-verified after the heavy-ion primaries feature (2026-07-20): fresh 10M-event rerun of the 22 MeV baseline config matches the archived 2026-07-15 result to 4 significant figures (best Qcrit=50 fC, sigma_device=2.119e-06 cm^2 both times). Untainted.
 
 **Verdict: genuine, independent plausibility win for PANDA's physics list (QGSP_BIC_HP)** -- not proof of accuracy (Qcrit is still a fit parameter), but agreement to within a factor of 2 against real 1994 accelerator data, with no dependency on reproducing another simulator's internals.
 
@@ -35,6 +36,8 @@ With a geometrically plausible (not device-specified -- the paper doesn't report
 
 **Verdict: within an order of magnitude with closely-matching curve shape, between two fundamentally different nuclear models -- by the validation standards applied to comparisons of this kind elsewhere in the field (e.g. MCNP-style cross-code validation), this is a genuine, accepted validation, not an open problem awaiting a fix.**
 
+- Re-verified after the heavy-ion primaries feature (2026-07-20): fresh 10M-event rerun (`Macros/run_mcnulty_148MeV.mac`) gives log-RMSE = 0.900 decades vs. measured, matching the previously-documented ~0.90-0.91 decades essentially exactly; confirmed-interaction counts (1,444,245 primary + 196,409 secondary-neutron) also match the archived run's (1,444,850 + 196,577) within ordinary RNG/MT-stream variation. Untainted.
+
 ### 1.3 CREME-MC / MRED
 
 - **Correction (2026-07-19): the original ~0.9-decade / "1-2 orders of magnitude" gap reported below was a methodology bug in `compare_creme_panda.py`, not a physics discrepancy.** The script was comparing CREME-MC's cross section against PANDA's **collected**-charge curve (`cumulative_cross_section_collected.csv`), which applies PANDA's drift/trapping collection-efficiency model (`Qeff = T*Qgen`, T<1, in `SteppingAction.cc`). CREME-MC (like CUPID) assumes the RPP model's ideal 100%-charge-collection convention, which has no equivalent of that efficiency factor -- so the two curves were never comparable quantities. Fixed to read `cumulative_cross_section_deposited.csv` instead (PANDA's 100%-collection-equivalent output).
@@ -43,6 +46,8 @@ With a geometrically plausible (not device-specified -- the paper doesn't report
 - MRED-vs-CREME-MC's own internal physics-list spread (Bertini/Binary/INCL++) is unaffected by this correction and remains a separate, valid reason not to chase an exact match to one specific MRED configuration.
 
 **Verdict (revised): good agreement (log-RMSE ~0.29 decades, full-range coverage) once compared against the correct 100%-collection-equivalent PANDA quantity. No remaining unexplained disagreement with CREME-MC requiring a "structural, not fixable" hedge.**
+
+- Re-verified after the heavy-ion primaries feature (2026-07-20): fresh 1M-event proton baseline rerun gives log-RMSE = 0.2915 decades, matching the 0.292 decades above. Untainted.
 
 ### 1.4 SRIM stopping-power cross-check (heavy-ion primaries, 2026-07-20)
 
