@@ -1,6 +1,6 @@
 # PANDA
 
-**Current release: [v1.7.2](https://github.com/MarkWSavage/PANDA/releases/tag/v1.7.2) — Heavy-Ion Primaries.** Six heavy-ion primaries (C12, F19, Cl35, Ni58, I127, Au197) are now selectable alongside the existing proton/neutron/alpha/deuteron/triton/He3 species, with cross-section biasing validated for all of them, extending PANDA into the direct-ionization-dominated regime of SEE testing. A regression macro per ion lives in `Macros/run_<ion>_smoke.mac`, and `Macros/run_C12_biased.mac` is a real 1M-event production-scale run. See `Documentation/PANDA_MASTER_DESIGN` (Section 5, Version History) for what's frozen and what's in scope.
+**Current release: [v1.7.3](https://github.com/MarkWSavage/PANDA/releases/tag/v1.7.3) — Heavy-Ion Primaries.** Six heavy-ion primaries (C12, F19, Cl35, Ni58, I127, Au197) are now selectable alongside the existing proton/neutron/alpha/deuteron/triton/He3 species, with cross-section biasing validated for all of them, extending PANDA into the direct-ionization-dominated regime of SEE testing. A regression macro per ion lives in `Macros/run_<ion>_smoke.mac`, and `Macros/run_C12_biased.mac` is a real 100k-event production-scale run. See `Documentation/PANDA_MASTER_DESIGN` (Section 5, Version History) for what's frozen and what's in scope.
 
 **PANDA** — *Protons And Neutron charge Deposition in mAterials* — is a Geant4 Monte Carlo simulation for calculating charge deposition from energetic particles (protons, neutrons, ions) in semiconductor structures, for Single Event Effect (SEE) analysis.
 
