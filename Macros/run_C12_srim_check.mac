@@ -1,0 +1,36 @@
+# SRIM cross-check -- NOT a full validation benchmark, just an
+# independent stopping-power sanity check. Small (1000), UNBIASED
+# (factor 1) event count deliberately: direct ionization happens on
+# every event, nuclear reactions are rare, so with this few events and
+# no cross-section boosting the mean deposited energy is dominated by
+# electronic stopping alone (confirmed via recoil_hits.csv species
+# breakdown: 16585 C12 hits vs only 38 gamma/22 alpha -- no other
+# fragments at this scale).
+#
+# Result (2026-07-20): mean deposited energy 1648.1 keV/event through
+# 8 um Si -> implied LET 0.884 MeV*cm2/mg, vs SRIM's reported 0.9060
+# MeV*cm2/mg for C12 at 180 MeV in Si -- ratio 0.976, within 2.4%.
+# See PANDA_MASTER_DESIGN/PANDA_VALIDATION_SUMMARY for how this is
+# recorded as an independent Geant4-EM-vs-SRIM cross-check.
+/random/setSeeds 90601 90602
+/sim/particle C12
+/sim/sensitiveXY 10 um
+/sim/deadXY 10 um
+/sim/sensitiveThickness 8 um
+/sim/deadThickness 5 um
+/sim/incidentAngle 0 deg
+/sim/sensitiveMaterial Si
+/sim/deadMaterial SiO2
+/sim/useCollectionModel true
+/sim/biasCrossSectionFactor 1
+/sim/carrierLifetime 1.0 ns
+/sim/electricField 1000000 volt/m
+/run/initialize
+/run/reinitializeGeometry
+
+/sim/energy 180 MeV
+/sim/beamXY 10 um
+/sim/criticalCharge 150
+/sim/logRecoilHits true
+/sim/verbose false
+/run/beamOn 1000
