@@ -13,6 +13,13 @@
 # dE/dx varies smoothly, to produce more than a few percent shift.
 # Read as ordinary Geant4-vs-SRIM stopping-power model variation, not
 # a methodology artifact -- see PANDA_VALIDATION_SUMMARY.md.
+#
+# Confirmed 2026-07-20: rerun at 10000 events (run_I127_srim_check_10k.mac)
+# gave LET 42.782, ratio 0.875 -- essentially unchanged from this
+# 1000-event run (SEM shrank from 0.123% to 0.052% of the mean with no
+# corresponding shift), ruling out statistics as the cause. SRIM's
+# 48.92 value was independently re-checked and confirmed unchanged.
+# The 13% gap is a real, stable, double-checked result on both sides.
 /random/setSeeds 12701 12702
 /sim/particle I127
 /sim/sensitiveXY 10 um

@@ -1,0 +1,34 @@
+# Statistics-confirmation follow-up to run_I127_srim_check.mac (10x
+# the events, same seed lineage) -- I127 showed the largest SRIM gap
+# of the six ions checked (13%, vs 5% or better for the other five),
+# so this reruns at higher statistics to rule out sampling noise as
+# the cause before accepting it as a real Geant4-vs-SRIM difference.
+#
+# Result (2026-07-20): LET 42.782 MeV*cm2/mg (SEM 0.052% of mean, vs
+# 0.123% at 1000 events) -- ratio to SRIM's 48.92 is 0.875, essentially
+# identical to the 1000-event run's 0.874. Confirms the gap is not
+# statistical. SRIM's value was also independently re-checked and
+# confirmed unchanged. See run_I127_srim_check.mac and
+# PANDA_VALIDATION_SUMMARY.md Section 1.4 for the full context.
+/random/setSeeds 12705 12706
+/sim/particle I127
+/sim/sensitiveXY 10 um
+/sim/deadXY 10 um
+/sim/sensitiveThickness 8 um
+/sim/deadThickness 5 um
+/sim/incidentAngle 0 deg
+/sim/sensitiveMaterial Si
+/sim/deadMaterial SiO2
+/sim/useCollectionModel true
+/sim/biasCrossSectionFactor 1
+/sim/carrierLifetime 1.0 ns
+/sim/electricField 1000000 volt/m
+/run/initialize
+/run/reinitializeGeometry
+
+/sim/energy 1905 MeV
+/sim/beamXY 10 um
+/sim/criticalCharge 150
+/sim/logRecoilHits true
+/sim/verbose false
+/run/beamOn 10000
