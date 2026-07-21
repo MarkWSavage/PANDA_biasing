@@ -79,9 +79,17 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent)
     G4double y =
         (G4UniformRand() - 0.5)*fBeamXY;
 
-    // Always start well upstream in vacuum
-    // Prevent source from being inside silicon
-
+    // Always start well upstream in vacuum. This is only actually true
+    // because DetectorConstruction::Construct() truncates
+    // SurroundingVolume's front face flush with the dead layer's own
+    // front face (see fActualSurroundingFrontZ there) -- before that
+    // fix, SurroundingVolume (built from the sensitive material, not
+    // vacuum) extended past the dead layer's front face for any
+    // dead+sensitive stack thinner than its ~10-20% auto-grow margin,
+    // silently costing every primary a fixed chunk of energy crossing
+    // solid material this comment claimed was vacuum (e.g. ~140 keV for
+    // a 5.486 MeV alpha, confirmed against the ORTEC BU-014-050-100
+    // datasheet's independently-quoted dead-layer loss).
     G4double sourceZ =
         -(detector->GetSensitiveThickness()/2.0
            + detector->GetDeadThickness()

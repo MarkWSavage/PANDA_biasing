@@ -1,0 +1,28 @@
+# CREME-MC/MRED regression check -- exact config from the last
+# confirmed-untainted baseline (commit ccfba74^ run.mac): 200 MeV
+# proton, biased (factor 1041), 1M events. Rerun after the ion
+# ionisation model swap (PANDA.cc ReplacePhysics ICRU73 change) to
+# confirm proton/recoil-fragment physics for this comparison is
+# unaffected.
+/random/setSeeds 12345 67890
+/sim/particle proton
+/sim/sensitiveXY 10 um
+/sim/deadXY 10 um
+/sim/sensitiveThickness 8 um
+/sim/deadThickness 5 um
+/sim/incidentAngle 0 deg
+/sim/sensitiveMaterial Si
+/sim/deadMaterial SiO2
+/sim/biasCrossSectionFactor 1041
+/sim/useCollectionModel true
+/sim/carrierLifetime 1.0 ns
+/sim/electricField 1000000 volt/m
+/run/initialize
+/run/reinitializeGeometry
+
+/sim/energy 200 MeV
+/sim/beamXY 10 um
+/sim/criticalCharge 150
+/sim/verbose false
+
+/run/beamOn 1000000

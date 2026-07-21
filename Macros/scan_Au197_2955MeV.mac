@@ -1,0 +1,28 @@
+# Au197 LET-vs-energy scan (SRIM cross-check), thin-slice geometry
+# matching run.mac's 200 MeV point (1 um sensitiveXY, 0.5 um sensitive
+# Si, 0.5 um dead SiO2) so every scan point measures the same kind of
+# differential/instantaneous LET rather than an integrated stopping
+# range -- directly comparable to SRIM's own dE/dx output at each
+# energy. Unbiased (factor 1): direct ionization dominates the mean
+# deposited energy at this event count, no need to force rare events.
+/random/setSeeds 40001 50002
+/sim/particle Au197
+/sim/sensitiveXY 1 um
+/sim/deadXY 1 um
+/sim/sensitiveThickness .5 um
+/sim/deadThickness .5 um
+/sim/incidentAngle 0 deg
+/sim/sensitiveMaterial Si
+/sim/deadMaterial SiO2
+/sim/biasCrossSectionFactor 1
+/sim/useCollectionModel true
+/sim/carrierLifetime 1.0 ns
+/sim/electricField 1000000 volt/m
+/run/initialize
+/run/reinitializeGeometry
+
+/sim/energy 2955 MeV
+/sim/beamXY 1 um
+/sim/criticalCharge 150
+/sim/verbose false
+/run/beamOn 10000

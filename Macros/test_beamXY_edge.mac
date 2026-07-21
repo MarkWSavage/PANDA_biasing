@@ -1,0 +1,26 @@
+# Edge-case check: beamXY set far larger than the auto-grown
+# surrounding volume (and even World), to see what Geant4 actually does
+# with primaries generated outside World's own extent -- crash, silent
+# zero-deposit events, or something else.
+/random/setSeeds 1 2
+/sim/particle proton
+/sim/sensitiveXY 10 um
+/sim/deadXY 10 um
+/sim/sensitiveThickness 10 um
+/sim/deadThickness 5 um
+/sim/incidentAngle 0 deg
+/sim/sensitiveMaterial Si
+/sim/deadMaterial SiO2
+/sim/biasCrossSectionFactor 1
+/sim/useCollectionModel true
+/sim/carrierLifetime 1.0 ns
+/sim/electricField 1000000 volt/m
+/run/initialize
+/run/reinitializeGeometry
+
+/sim/energy 50 MeV
+/sim/beamXY 100000 um
+/sim/criticalCharge 150
+/sim/verbose false
+
+/run/beamOn 1000

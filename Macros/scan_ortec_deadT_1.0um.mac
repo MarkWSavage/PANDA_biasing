@@ -1,0 +1,22 @@
+/random/setSeeds 24111 24112
+/sim/particle alpha
+/sim/sensitiveXY 1 mm
+/sim/deadXY 1 mm
+/sim/sensitiveThickness 100 um
+/sim/deadThickness 1.0 um
+/sim/incidentAngle 0 deg
+/sim/sensitiveMaterial Si
+/sim/deadMaterial Si
+/sim/biasCrossSectionFactor 1
+/sim/useCollectionModel true
+/sim/carrierLifetime 1.0 ns
+/sim/electricField 1000000 volt/m
+/run/initialize
+/run/reinitializeGeometry
+
+/sim/energy 5.486 MeV
+/sim/beamXY 1 mm
+/sim/criticalCharge 150
+/sim/verbose false
+
+/run/beamOn 20000

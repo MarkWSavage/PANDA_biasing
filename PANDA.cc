@@ -3,6 +3,7 @@
 #include "G4UImanager.hh"
  #include "QGSP_BIC_HP.hh"
 //#include "QGSP_INCLXX_HP.hh"
+#include "G4EmStandardPhysics_option4.hh"
 #include "G4GenericBiasingPhysics.hh"
 #include "SEEBiasingOperator.hh"
 
@@ -43,6 +44,24 @@ int main(int argc, char** argv)
     // Physics list
     auto* physicsList = new QGSP_BIC_HP();
         //new QGSP_INCLXX_HP()
+
+    // QGSP_BIC_HP's own EM constructor (G4EmStandardPhysics_option4)
+    // registers GenericIon's ionisation with G4LindhardSorensenIonModel
+    // below ~2 MeV/nucleon and G4BetheBlochModel above it -- neither is
+    // a per-species heavy-ion stopping-power table. Cross-checked
+    // against SRIM (Au197 in Si, 200 MeV): that combination came out
+    // 46% low (38.1 vs SRIM's 70.39 MeV*cm2/mg). Passing a non-empty
+    // name here flips G4EmStandardPhysics_option4's fUseExternalDEDX
+    // flag, swapping in G4IonParametrisedLossModel instead, which uses
+    // real per-(ion,element) ICRU73 tables bundled with Geant4 --
+    // confirmed z79_14.dat (Au197 in elemental Si) exists and agrees
+    // with the same SRIM point within ~6%. Falls back to
+    // G4BraggIonModel/G4BetheBlochModel automatically for any
+    // ion/material/energy combination ICRU73 doesn't cover, so this is
+    // a strict improvement, not a swap with new gaps. Same registered
+    // physics name ("G4EmStandard_opt4"), so ReplacePhysics finds and
+    // replaces the one QGSP_BIC_HP already added.
+    physicsList->ReplacePhysics(new G4EmStandardPhysics_option4(1, "ICRU73"));
 
     // Note: heavy-ion primaries (e.g. C12, Au197) are NOT pre-created
     // here. G4IonTable::GetIon() needs GenericIon's own process manager

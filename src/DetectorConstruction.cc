@@ -313,10 +313,37 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
     G4double surroundingThickness =
         std::max(fSurroundingThickness, 1.2 * totalThickness);
 
+    // SurroundingVolume's front (beam-entrance) face is truncated flush
+    // with the dead layer's own front face -- NOT centered symmetrically
+    // about the stack's midpoint like the back/lateral margins still
+    // are. A symmetric box left ~10-20% of surroundingThickness worth of
+    // solid (sensitive-material) silicon sitting *upstream* of the dead
+    // layer, in what every other part of this codebase (PrimaryGenerator
+    // Action's own comment included) assumed was vacuum -- confirmed via
+    // the ORTEC BU-014-050-100 alpha-spectroscopy datasheet cross-check:
+    // a 5.486 MeV alpha through that unintended margin lost ~140 keV it
+    // had no business losing before ever reaching the modeled dead
+    // layer. The back/lateral margins are left exactly as before (still
+    // sized from surroundingThickness/surroundingXY above) since those
+    // are what the McNulty nearby-nuclear-reaction validation depends
+    // on; only the front face moves.
+    G4double deadFrontZ =
+        -(fEffectiveSensitiveThickness/2.0 + fEffectiveDeadThickness);
+
+    G4double oldSymmetricBackFaceZ = surroundingThickness/2.0;
+
+    G4double surroundingThicknessZ = oldSymmetricBackFaceZ - deadFrontZ;
+    G4double surroundingCenterZ =
+        (deadFrontZ + oldSymmetricBackFaceZ)/2.0;
+
     // Thin vacuum margin around the surrounding volume (Geant4's
-    // outermost placed volume convention).
+    // outermost placed volume convention). World stays centered at the
+    // origin, so its half-extent must cover whichever face (front or
+    // back) sits further from it -- no longer symmetric now that
+    // SurroundingVolume itself is offset.
     G4double worldXY = 1.2 * surroundingXY;
-    G4double worldZ  = 1.2 * surroundingThickness;
+    G4double worldZ =
+        2.4 * std::max(std::abs(deadFrontZ), std::abs(oldSymmetricBackFaceZ));
 
     auto solidWorld =
         new G4Box(
@@ -357,7 +384,7 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
             "SurroundingVolume",
             surroundingXY/2,
             surroundingXY/2,
-            surroundingThickness/2
+            surroundingThicknessZ/2
         );
 
     auto logicSurrounding =
@@ -373,7 +400,7 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
 
     new G4PVPlacement(
         nullptr,
-        G4ThreeVector(),
+        G4ThreeVector(0, 0, surroundingCenterZ),
         logicSurrounding,
         "SurroundingVolume",
         logicWorld,
@@ -409,6 +436,7 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
             0,
             0,
             -(fEffectiveSensitiveThickness/2 + fEffectiveDeadThickness/2)
+                - surroundingCenterZ
         ),
         logicDead,
         "DeadLayer",
@@ -446,7 +474,7 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
 
     new G4PVPlacement(
         nullptr,
-        G4ThreeVector(0,0,0),
+        G4ThreeVector(0, 0, -surroundingCenterZ),
         fSensitiveLogical,
         "SensitiveVolume",
         logicSurrounding,

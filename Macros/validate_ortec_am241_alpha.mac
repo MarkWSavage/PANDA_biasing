@@ -1,0 +1,30 @@
+# ORTEC ULTRA BU-014-050-100 alpha spectroscopy datasheet (Experiment 4)
+# cross-check: Am-241 5.486 MeV alpha, 500 Angstrom (0.05 um) boron-
+# implanted Si dead layer, 100 um Si depletion depth (= sensitive
+# thickness). Datasheet states a 5 MeV alpha loses ~7 keV in the 500 A
+# dead layer, and the example spectrum shows FWHM ~15 keV (guaranteed
+# spec <14 keV) for the 5.486 MeV peak. Known geometry, known source
+# energy, known material -- unlike Hitachi (guessed) or McNulty
+# (CUPID-model-derived), this is a real vendor-specified device.
+/random/setSeeds 24111 24112
+/sim/particle alpha
+/sim/sensitiveXY 1 mm
+/sim/deadXY 1 mm
+/sim/sensitiveThickness 100 um
+/sim/deadThickness 0.05 um
+/sim/incidentAngle 0 deg
+/sim/sensitiveMaterial Si
+/sim/deadMaterial Si
+/sim/biasCrossSectionFactor 1
+/sim/useCollectionModel true
+/sim/carrierLifetime 1.0 ns
+/sim/electricField 1000000 volt/m
+/run/initialize
+/run/reinitializeGeometry
+
+/sim/energy 5.486 MeV
+/sim/beamXY 1 mm
+/sim/criticalCharge 150
+/sim/verbose false
+
+/run/beamOn 100000
