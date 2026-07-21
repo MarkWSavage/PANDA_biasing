@@ -8,19 +8,17 @@
 
 ## 1. Comparisons against external data/tools
 
-### 1.1 Hitachi HM68512 proton SEU (open literature, LaBel et al. ~1994 NASA GSFC NSREC report)
+### 1.1 Hitachi HM68512 proton SEU (open literature, LaBel et al. ~1994 NASA GSFC NSREC report) -- capability demonstration, not a validation
 
-The only comparison against real, independent (non-CREME-MC, non-CUPID) experimental data. Device: 4 Mbit CMOS-on-EPI SRAM, proton-tested 22-63 MeV at UC Davis. Measured static cross section 1e-6 cm^2/device, dynamic 2.2e-5 cm^2/device, with little energy dependence over that range.
+**Reclassified 2026-07-21: this is not a validation entry.** The source report gives only device-level cross sections (static 1e-6 cm^2/device, dynamic 2.2e-5 cm^2/device, 22-63 MeV, little energy dependence) for a 4 Mbit CMOS-on-EPI SRAM proton-tested at UC Davis -- it never states the sensitive-volume geometry or critical charge. Both had to be guessed and fit rather than read from the source, which means any agreement below reflects a 2-free-parameter fit to a single device-level number, not an independent check of PANDA's physics against known ground truth. It was kept in this document only as a record that PANDA can run this style of geometry x Qcrit plausibility scan at all -- not as evidence for or against PANDA's accuracy. See 1.2 (McNulty) and 1.3 (CREME-MC) for comparisons against independently-specified geometry, which are the real accuracy evidence.
 
-With a geometrically plausible (not device-specified -- the paper doesn't report it) sensitive volume and a freely-fit critical charge:
+For reference, the scan that was run:
 
-- **Best fit: Qcrit=50 fC, sensitive volume 20-27 um^3** (three different aspect ratios -- 3x3x3, 2x2x5, 5x5x1 um -- all converge here independent of shape).
-- Reproduces the measured static cross section within **~2x**, and reproduces the real device's flat 22-63 MeV energy dependence (2-3x max/min variation).
-- Undersized (4 um^3) and oversized (125 um^3) geometries both break the fit -- undershooting badly or requiring a much higher Qcrit that then destroys the flat energy dependence -- so the 20-27 um^3 match is a real constraint, not a free parameter absorbing everything.
-- Re-verified after the region-scoped production-cuts change (2026-07-15): shift is small at the Qcrit=50-100fC range this comparison actually operates in; conclusion unchanged.
-- Re-verified after the heavy-ion primaries feature (2026-07-20): fresh 10M-event rerun of the 22 MeV baseline config matches the archived 2026-07-15 result to 4 significant figures (best Qcrit=50 fC, sigma_device=2.119e-06 cm^2 both times). Untainted.
+- **Best fit: Qcrit=50 fC, sensitive volume 20-27 um^3** (three different aspect ratios -- 3x3x3, 2x2x5, 5x5x1 um -- all converge here independent of shape), reproducing the measured static cross section within ~2x and the device's flat 22-63 MeV energy dependence.
+- Undersized (4 um^3) and oversized (125 um^3) geometries both broke the fit, so the 20-27 um^3 match was at least a real constraint on the 2-parameter fit, not something that absorbed any input.
+- Re-verified untainted after the region-scoped production-cuts, heavy-ion-primaries, and ion-ionisation-model changes (2026-07-15 through 2026-07-21) -- moved by ~1-23% across those changes depending on which one, all within what a 2-parameter fit to an unknown device would be expected to absorb.
 
-**Verdict: genuine, independent plausibility win for PANDA's physics list (QGSP_BIC_HP)** -- not proof of accuracy (Qcrit is still a fit parameter), but agreement to within a factor of 2 against real 1994 accelerator data, with no dependency on reproducing another simulator's internals.
+**Verdict: not a validation.** A capability/plausibility demonstration only.
 
 ### 1.2 McNulty et al. 1989 proton SEE / CUPID (148 MeV, 11.7x11.7x13.5 um Si)
 
@@ -91,7 +89,7 @@ These did not compare against external data -- they stress-tested PANDA's own ge
 
 PANDA's three core responsibilities -- geometry, particle generation/transport, and energy/charge scoring -- have been validated for correctness and stress-tested for robustness:
 
-- **Against real, open experimental data** (Hitachi HM68512, McNulty et al. 1989): agreement within a factor of ~2 (Hitachi); McNulty's high-energy residual, once two candidate causes were tested and ruled out, is understood to be a structural consequence of comparing two fundamentally different nuclear models (see 1.2) rather than an unresolved fidelity gap.
+- **Against real, open experimental data** (McNulty et al. 1989, independently-specified 11.7x11.7x13.5 um Si geometry): McNulty's high-energy residual, once two candidate causes were tested and ruled out, is understood to be a structural consequence of comparing two fundamentally different nuclear models (see 1.2) rather than an unresolved fidelity gap. (Hitachi HM68512 is excluded here -- see 1.1's reclassification: its geometry and Qcrit were never published, so it's a capability demonstration, not independent validation evidence.)
 - **Against other simulation tools**: CREME-MC agreement is good (log-RMSE ~0.29 decades, full-range coverage) once compared against PANDA's correct 100%-collection-equivalent (deposited-charge) output -- see 1.3 correction. CUPID's remaining disagreement is attributed to its own structural limitations (liquid-drop evaporation model, no direct-ionization modeling), not to defects in PANDA.
 - **Across device scale**, from mid-2000s bulk-junction geometries down to 80nm-node deep-submicron devices: geometry, biasing, production cuts, and recoil/LET export all confirmed functioning correctly, with one real fidelity bug (missing scaled production cuts) found and fixed along the way.
 - **Three plausible-sounding hypotheses tested and rejected** (gold-lid LET-ceiling increase, ~80 um shell ceiling, and -- 2026-07-19 -- neither widening the McNulty beam footprint nor growing its surrounding volume narrows the residual high-energy gap) -- all recorded as closed, negative results rather than open concerns.

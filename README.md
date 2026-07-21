@@ -33,7 +33,7 @@ Run `python3 PANDAEX_Analyze.py` to analyze it: a per-species summary table (cou
 
 Set `/sim/incidentAngle` (degrees, default `0`) to approximate a beam tilted off the sensitive volume's normal. Rather than rotating the beam or geometry (which would also need to reshape the dead layer, surrounding volume, and secondary-neutron-biasing region), this divides the sensitive volume's effective thickness by `cos(incidentAngle)` -- the same chord-length-elongation model used for tilt-angle corrections in heavy-ion SEE testing (`LET_eff = LET(0 deg)/cos(theta)`), valid for a broad-uniform-beam test condition (beam footprint much larger than the device). The lateral (XY) footprint is intentionally left unchanged -- no physically-grounded correction for it was found; see `Documentation/PANDA_MASTER_DESIGN` for why. Valid range `[0, 90)` deg; anything outside that raises a fatal exception rather than silently producing an infinite or negative thickness.
 
-See `Documentation/PANDA_VALIDATION_SUMMARY.md` for the full validation summary -- comparisons against Hitachi HM68512 open proton-SEU data, McNulty et al./CUPID, and CREME-MC/MRED, plus every geometry/physics robustness check run against PANDA itself.
+See `Documentation/PANDA_VALIDATION_SUMMARY.md` for the full validation summary -- comparisons against McNulty et al./CUPID and CREME-MC/MRED (both against independently-specified geometry), plus every geometry/physics robustness check run against PANDA itself. (Hitachi HM68512 open proton-SEU data is also discussed there, but reclassified as a capability demonstration rather than a validation, since its device geometry and critical charge were never published.)
 
 ## Known limitations
 
