@@ -53,14 +53,28 @@ int main(int argc, char** argv)
     // 46% low (38.1 vs SRIM's 70.39 MeV*cm2/mg). Passing a non-empty
     // name here flips G4EmStandardPhysics_option4's fUseExternalDEDX
     // flag, swapping in G4IonParametrisedLossModel instead, which uses
-    // real per-(ion,element) ICRU73 tables bundled with Geant4 --
-    // confirmed z79_14.dat (Au197 in elemental Si) exists and agrees
-    // with the same SRIM point within ~6%. Falls back to
+    // ICRU73 tables bundled with Geant4 -- confirmed within ~6% of the
+    // same SRIM point. Note: ICRU73's own measured data only covers
+    // Z=3-18 directly (e.g. z6_14.dat, used as-is for C12); for Z>=19
+    // (Au197 included), G4IonDEDXScalingICRU73's default range
+    // (minAtomicNumberIon=19) redirects the lookup to iron's (Z=26)
+    // table instead, scaled by the ratio of effective (equilibrium)
+    // charge^2 between the real ion and Fe at matched velocity -- so
+    // z79_14.dat on disk is never actually read for Au in a
+    // single-element sensitive material (confirmed via
+    // G4IonDEDXHandler::BuildDEDXTable calling AtomicNumberBaseIon()
+    // first). The ~6% Au197 agreement above was against that Fe-scaled
+    // value, not a native Au table -- and the scaling grows less
+    // reliable the further the real ion sits from Fe in Z (e.g. at
+    // 16 MeV/u, Au197 vs SRIM opens up to ~10% by this mechanism
+    // alone, well above C12's ~8%, which uses native ICRU73 data
+    // throughout since Z=6 is below the scaling threshold). Falls back to
     // G4BraggIonModel/G4BetheBlochModel automatically for any
     // ion/material/energy combination ICRU73 doesn't cover, so this is
-    // a strict improvement, not a swap with new gaps. Same registered
-    // physics name ("G4EmStandard_opt4"), so ReplacePhysics finds and
-    // replaces the one QGSP_BIC_HP already added.
+    // still a strict improvement over the un-swapped default, not a
+    // swap with new gaps. Same registered physics name
+    // ("G4EmStandard_opt4"), so ReplacePhysics finds and replaces the
+    // one QGSP_BIC_HP already added.
     physicsList->ReplacePhysics(new G4EmStandardPhysics_option4(1, "ICRU73"));
 
     // Note: heavy-ion primaries (e.g. C12, Au197) are NOT pre-created
