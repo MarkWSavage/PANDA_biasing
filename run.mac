@@ -18,6 +18,5 @@
 /sim/beamXY 1 um
 /sim/criticalCharge 150
 /sim/verbose false
-/sim/logRecoilHits true
 
-/run/beamOn 100000
+/run/beamOn 500000

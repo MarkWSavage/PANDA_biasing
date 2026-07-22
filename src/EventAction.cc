@@ -89,6 +89,7 @@ EventAction::EventAction()
          << "Total_keV,"
          << "Proton_keV,"
          << "Electron_keV,"
+         << "PrimaryIon_keV,"
          << "Recoil_keV,"
          << "UpsetCharge_fC,"
          << "EventWeight"
@@ -110,10 +111,11 @@ void EventAction::BeginOfEventAction(const G4Event*)
 {
     fHits.clear();
 
-    fTotalEdep    = 0.0;
-    fProtonEdep   = 0.0;
-    fElectronEdep = 0.0;
-    fRecoilEdep   = 0.0;
+    fTotalEdep      = 0.0;
+    fProtonEdep     = 0.0;
+    fElectronEdep   = 0.0;
+    fPrimaryIonEdep = 0.0;
+    fRecoilEdep     = 0.0;
     fCollectedCharge = 0.0;
 
     fEventWeight = 1.0;
@@ -168,6 +170,7 @@ void EventAction::EndOfEventAction(const G4Event* event)
             << fTotalEdep / keV << ","
             << fProtonEdep / keV << ","
             << fElectronEdep / keV << ","
+            << fPrimaryIonEdep / keV << ","
             << fRecoilEdep / keV << ","
             << upsetCharge / (1.0e-15 * CLHEP::coulomb) << ","
             << fEventWeight
@@ -182,6 +185,7 @@ void EventAction::EndOfEventAction(const G4Event* event)
             << " | Total: " << fTotalEdep / keV << " keV"
             << " | Proton: " << fProtonEdep / keV << " keV"
             << " | Electron: " << fElectronEdep / keV << " keV"
+            << " | PrimaryIon: " << fPrimaryIonEdep / keV << " keV"
             << " | Recoil: " << fRecoilEdep / keV << " keV"
             << " | Deposited Q: " << depositedCharge_fC << " fC"
             << " | Collected Q: " << collectedCharge_fC << " fC"
@@ -266,6 +270,12 @@ void EventAction::AddElectronEdep(G4double edep)
     fTotalEdep += edep;
 }
 
+void EventAction::AddPrimaryIonEdep(G4double edep)
+{
+    fPrimaryIonEdep += edep;
+    fTotalEdep += edep;
+}
+
 void EventAction::AddRecoilEdep(G4double edep)
 {
     fRecoilEdep += edep;
@@ -318,15 +328,15 @@ void EventAction::MergeThreadOutputs()
         }
     }
 
-    // events.csv has 9 columns (see the header written in the
+    // events.csv has 10 columns (see the header written in the
     // constructor). A per-thread file can end up with a torn/glued
     // line -- e.g. two overlapping PANDA runs both pointed at
     // kResultsDir at once, racing unsynchronized writes onto the same
     // events_t<N>.csv path -- so check field count here rather than
     // trust it's well-formed; a malformed line otherwise silently
     // breaks every downstream pandas read_csv() with an opaque
-    // "Expected 9 fields" C-parser error, far from this file.
-    constexpr int kExpectedFields = 9;
+    // "Expected 10 fields" C-parser error, far from this file.
+    constexpr int kExpectedFields = 10;
 
     std::ofstream merged(dir / "events.csv");
     bool headerWritten = false;

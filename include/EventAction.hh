@@ -41,6 +41,7 @@ public:
     // count, using the raw charge value for bin placement.
     void AddProtonEdep(G4double edep);
     void AddElectronEdep(G4double edep);
+    void AddPrimaryIonEdep(G4double edep);
     void AddRecoilEdep(G4double edep);
     void AddCollectedCharge(G4double q);
 
@@ -102,6 +103,13 @@ private:
     G4double fTotalEdep = 0.0;
     G4double fProtonEdep = 0.0;
     G4double fElectronEdep = 0.0;
+    // The primary beam particle's own track (TrackID==1, ParentID==0),
+    // for any primary species that isn't proton/e- -- see
+    // SteppingAction's classification. Split out of fRecoilEdep so a
+    // heavy-ion primary's dominant continuous electronic-stopping
+    // deposit (SRIM's "Ions" curve) doesn't masquerade as nuclear-
+    // recoil energy.
+    G4double fPrimaryIonEdep = 0.0;
     G4double fRecoilEdep = 0.0;
 
     // See UpdateEventWeight() above.

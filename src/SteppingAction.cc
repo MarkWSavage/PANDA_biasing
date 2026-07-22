@@ -32,6 +32,25 @@ void SteppingAction::UserSteppingAction(const G4Step* step)
     if (edep <= 0.0)
         return;
 
+    // GetTotalEnergyDeposit() includes both ionizing and non-ionizing
+    // (NIEL/displacement-damage) energy loss; only the ionizing part
+    // actually produces electron-hole pairs, so it's what must feed
+    // every downstream quantity below (event totals, Qgen, per-hit
+    // LET/edep export) -- charge computed from the un-subtracted total
+    // over-counts for any step whose energy loss is partly non-
+    // ionizing. Confirmed NOT a no-op: G4ionIonisation's models split
+    // off a genuine nuclear-stopping component (SRIM's separate
+    // "Nuclear stopping" curve, distinct from electronic stopping) and
+    // flag it as non-ionizing via this same field, including on a
+    // heavy primary ion's own track, not just secondary recoils --
+    // measured ~0.5-1% of a typical step's deposit for 200 MeV Au197
+    // in Si, consistent with the ~0.8% drop in mean deposited charge
+    // this fix produced in the full run.mac regression check.
+    edep -= step->GetNonIonizingEnergyDeposit();
+
+    if (edep <= 0.0)
+        return;
+
     // Current volume
     auto volume =
         step->GetPreStepPoint()
@@ -171,9 +190,26 @@ void SteppingAction::UserSteppingAction(const G4Step* step)
     {
         fEventAction->AddElectronEdep(edep);
     }
+    else if (hit.trackID == 1 && hit.parentID == 0)
+    {
+        // The primary beam particle's own track, for any primary
+        // species that isn't proton/e- (alpha, deuteron, triton, He3,
+        // and every heavy-ion primary). This is its continuous
+        // electronic-stopping deposit -- SRIM's dominant "Ions" curve,
+        // not a nuclear recoil -- so it gets its own bucket rather
+        // than being folded into Recoil_keV below, where it would
+        // otherwise dwarf genuine secondary-recoil contributions (a
+        // 200 MeV Au197 primary put ~88% of Total_keV here before this
+        // split existed). Geant4 guarantees TrackID==1 && ParentID==0
+        // uniquely identifies the primary track.
+        fEventAction->AddPrimaryIonEdep(edep);
+    }
     else
     {
-     // recoil nuclei, ions, fragments
+        // Genuine secondary recoil nuclei, ions, and fragments only
+        // (primary-species-but-secondary-track is intentionally rare:
+        // e.g. an elastic scatter that reuses the primary's own
+        // TrackID never reaches here, since that's still TrackID==1).
         fEventAction->AddRecoilEdep(edep);
     }
 

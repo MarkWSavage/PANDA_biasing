@@ -43,6 +43,23 @@ proton_keV   = data["Proton_keV"].values
 electron_keV = data["Electron_keV"].values
 recoil_keV   = data["Recoil_keV"].values
 
+# PrimaryIon_keV splits out the primary beam particle's own track
+# (TrackID==1/ParentID==0) from Recoil_keV -- for any primary species
+# that isn't proton/e- (alpha and every heavier ion), this is the
+# dominant, expected continuous electronic-stopping deposit (SRIM's
+# "Ions" curve), not a nuclear recoil. Falls back to zero for
+# events.csv files predating this column, so the Recoil curve below
+# just reverts to its old (primary+recoil-conflated) meaning rather
+# than erroring.
+has_primary_ion_column = "PrimaryIon_keV" in data.columns
+
+if has_primary_ion_column:
+    primary_ion_keV = data["PrimaryIon_keV"].values
+else:
+    primary_ion_keV = np.zeros(len(data))
+    print("No PrimaryIon_keV column found (older events.csv) -- Recoil "
+          "still includes any primary-ion-track deposit, as before this split.")
+
 # ----------------------------
 # Filter Data
 # ----------------------------
@@ -50,13 +67,17 @@ nonzero_mask = total_keV > 0
 nonzero_keV    = total_keV[nonzero_mask]
 nonzero_weight = weight[nonzero_mask]
 
-proton_mask   = proton_keV > 0
-electron_mask = electron_keV > 0
-recoil_mask   = recoil_keV > 0
+proton_mask      = proton_keV > 0
+electron_mask    = electron_keV > 0
+recoil_mask      = recoil_keV > 0
+primary_ion_mask = primary_ion_keV > 0
 
 proton_nonzero,   proton_weight   = proton_keV[proton_mask],     weight[proton_mask]
 electron_nonzero, electron_weight = electron_keV[electron_mask], weight[electron_mask]
 recoil_nonzero,   recoil_weight   = recoil_keV[recoil_mask],     weight[recoil_mask]
+primary_ion_nonzero, primary_ion_weight = (
+    primary_ion_keV[primary_ion_mask], weight[primary_ion_mask]
+)
 
 # ----------------------------
 # Basic statistics
@@ -74,6 +95,14 @@ print(f"Total events: {N_total}")
 print(f"Triggered events (raw count): {len(nonzero_keV)}")
 print(f"Efficiency (weighted): {np.sum(nonzero_weight) / N_total:.8e}")
 
+if has_primary_ion_column:
+    total_sum = np.sum(total_keV * weight)
+    print("\nComponent share of Total_keV (weighted):")
+    print(f"  Proton:      {np.sum(proton_keV * weight) / total_sum * 100:.2f}%")
+    print(f"  Electron:    {np.sum(electron_keV * weight) / total_sum * 100:.2f}%")
+    print(f"  Primary ion: {np.sum(primary_ion_keV * weight) / total_sum * 100:.2f}%")
+    print(f"  Recoil:      {np.sum(recoil_keV * weight) / total_sum * 100:.2f}%")
+
 # ----------------------------
 # Histogram
 # ----------------------------
@@ -82,11 +111,11 @@ print(f"Efficiency (weighted): {np.sum(nonzero_weight) / N_total:.8e}")
 # MeV-scale nuclear-recoil tail), and linear bins from 0 to the single
 # largest observed value stretch so wide that the bulk of the
 # distribution collapses into the first bin or two. Range is taken
-# from the smallest and largest nonzero value across ALL FOUR series
+# from the smallest and largest nonzero value across ALL FIVE series
 # (not just Total) since a component can be nonzero-but-small in a row
 # where other components dominate the row's Total.
 all_nonzero_keV = np.concatenate([
-    nonzero_keV, proton_nonzero, electron_nonzero, recoil_nonzero
+    nonzero_keV, proton_nonzero, electron_nonzero, primary_ion_nonzero, recoil_nonzero
 ])
 
 bins = np.logspace(
@@ -117,6 +146,12 @@ hist_recoil, _ = np.histogram(
     recoil_nonzero,
     bins=bins,
     weights=recoil_weight
+)
+
+hist_primary_ion, _ = np.histogram(
+    primary_ion_nonzero,
+    bins=bins,
+    weights=primary_ion_weight
 )
 
 # Geometric mean, not arithmetic, is the correct bin-center convention
@@ -152,9 +187,16 @@ plt.step(
 
 plt.step(
     centers,
+    hist_primary_ion,
+    where="mid",
+    label="Primary ion (own track)"
+)
+
+plt.step(
+    centers,
     hist_recoil,
     where="mid",
-    label="Recoil"
+    label="Recoil (genuine secondary)"
 )
 
 plt.legend()
